@@ -1266,29 +1266,37 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
   // =========================================================================
   // VIEW 2: AUTHENTICATED APP (Full 4-Screen HTML Prototype Flow)
   // =========================================================================
-  // Filter verified completed practice sessions (tracked per user/session)
-  const totalCompletedSessions = completedPracticeList.length;
+  // Number of sessions the user actually practiced across database history and current session
+  const dbPracticedSessions = historySessions.filter(
+    (s: any) => s.comparison || s.retryScores || (s.retryTranscript && s.retryTranscript.length >= 35)
+  );
+  const allPracticedIds = new Set([
+    ...dbPracticedSessions.map((s: any) => s.id),
+    ...completedPracticeList.map(s => s.id),
+  ]);
+  const totalCompletedSessions = Math.max(
+    allPracticedIds.size,
+    dbPracticedSessions.length,
+    completedPracticeList.length,
+    comparison ? 1 : 0
+  );
   const hasCompletedPracticeSession = totalCompletedSessions > 0;
 
   // Dynamic practice guidance target config (Cadence matching)
   const targetSessions = Math.max(1, planFrequency || 3);
   const sessionDuration = planMinutes || 5;
 
-  // Track progress within the user's active cadence cycle
-  // e.g., target = 3:
-  // 1 session completed -> 1/3
-  // 2 sessions completed -> 2/3
-  // 3 sessions completed -> 3/3 (Target reached!)
-  // 4 sessions completed -> 1/3 (in cycle 2)
-  const completedInCycle = totalCompletedSessions === 0 
-    ? 0 
-    : ((totalCompletedSessions - 1) % targetSessions) + 1;
-  const isTargetReached = totalCompletedSessions > 0 && totalCompletedSessions >= targetSessions;
-  const displayRatio = isTargetReached && totalCompletedSessions === targetSessions
-    ? `${targetSessions}/${targetSessions}`
-    : `${completedInCycle}/${targetSessions}`;
-  const progressPercent = Math.min(100, Math.round((completedInCycle / targetSessions) * 100));
-  const remainingInTarget = Math.max(0, targetSessions - completedInCycle);
+  // Has user completed all configured sessions in their cadence?
+  const isTargetReached = totalCompletedSessions >= targetSessions;
+
+  // Display ratio e.g. 1/3, 2/3, 3/3 (clamped to targetSessions for display)
+  const displayRatio = `${Math.min(totalCompletedSessions, targetSessions)}/${targetSessions}`;
+
+  // Progress Bar percentage (guaranteed 100% when all configured sessions are completed)
+  const progressPercent = isTargetReached
+    ? 100
+    : Math.min(100, Math.round((totalCompletedSessions / targetSessions) * 100));
+  const remainingInTarget = Math.max(0, targetSessions - totalCompletedSessions);
 
   return (
     <div className="shell">
@@ -1334,30 +1342,27 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
         {hasCompletedPracticeSession && (
           <div style={{ marginTop: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7b7194', marginBottom: '6px', paddingLeft: '4px' }}>
-              Progress streak
+              Progress Streak
             </div>
             <div className="sidebar-streak-card" style={{ marginTop: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#2d1b54' }}>
                   🔥 Practice Sessions
                 </span>
-                <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#7c3aed' }}>
-                  {totalCompletedSessions} {totalCompletedSessions === 1 ? 'Session' : 'Sessions'}
-                </span>
-              </div>
-
-              {/* Dynamic Target Guidance */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                <span className="tiny" style={{ color: '#7b7194' }}>
-                  Target: <strong>{targetSessions} {targetSessions === 1 ? 'session' : 'sessions'}</strong> ({sessionDuration}m each)
-                </span>
-                <span className="tiny" style={{ color: isTargetReached ? '#059669' : '#6d28d9', fontWeight: 700 }}>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: isTargetReached ? '#059669' : '#7c3aed' }}>
                   {displayRatio}
                 </span>
               </div>
 
-              {/* Dynamic Progress Bar */}
-              <div style={{ background: '#ede7fb', borderRadius: '6px', height: '6px', overflow: 'hidden', margin: '4px 0 8px' }}>
+              {/* On top of progress bar show text: Target 3 sessions (5min each). 1/3 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', marginBottom: '4px' }}>
+                <span className="tiny" style={{ color: '#665c80', fontSize: '11.5px', fontWeight: 600 }}>
+                  Target {targetSessions} {targetSessions === 1 ? 'session' : 'sessions'} ({sessionDuration}min each). {displayRatio}
+                </span>
+              </div>
+
+              {/* Dynamic Progress Bar (Guaranteed 100% full when all sessions completed) */}
+              <div style={{ background: '#ede7fb', borderRadius: '8px', height: '9px', overflow: 'hidden', margin: '4px 0 8px' }}>
                 <div
                   style={{
                     width: `${progressPercent}%`,
@@ -1365,7 +1370,7 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                       ? 'linear-gradient(90deg, #10b981, #059669)'
                       : 'linear-gradient(90deg, #7c3aed, #4f46e5)',
                     height: '100%',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     transition: 'width 0.4s ease',
                   }}
                 />
@@ -1374,7 +1379,7 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
               {/* Session Rep Badges (Dynamically matches user cadence target) */}
               <div className="sidebar-session-pills">
                 {Array.from({ length: targetSessions }).map((_, idx) => {
-                  const isDone = idx < completedInCycle || isTargetReached;
+                  const isDone = idx < totalCompletedSessions;
                   return (
                     <span key={idx} className={`sidebar-rep-pill ${isDone ? 'done' : ''}`}>
                       <span>Rep {idx + 1}</span>
@@ -1384,46 +1389,12 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                 })}
               </div>
 
-              <div className="tiny" style={{ color: '#554e66', margin: '4px 0 10px', fontSize: '11px' }}>
+              {/* Under progress bar text: Target reached (3 completed) when all configured sessions completed */}
+              <div className="tiny" style={{ color: isTargetReached ? '#059669' : '#554e66', margin: '6px 0 2px', fontSize: '11.5px', fontWeight: isTargetReached ? 700 : 500 }}>
                 {isTargetReached
-                  ? `🎉 Target reached! (${totalCompletedSessions} completed)`
-                  : `🎯 ${remainingInTarget} more ${remainingInTarget === 1 ? 'session' : 'sessions'} to complete your ${targetSessions}-session goal`}
+                  ? `🎉 Target reached (${targetSessions} completed)`
+                  : `🎯 ${remainingInTarget} more ${remainingInTarget === 1 ? 'session' : 'sessions'} to complete your target`}
               </div>
-
-              {/* Completed Sessions Display Under Streak Section */}
-              <div className="sidebar-completed-sessions">
-                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#3f355c', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Completed Practice Sessions</span>
-                  <span className="tiny" style={{ color: '#7c3aed', fontWeight: 700 }}>{totalCompletedSessions}</span>
-                </div>
-
-                {/* List of verified completed sessions */}
-                {completedPracticeList.slice(0, 3).map((s, idx) => (
-                  <div key={s.id || idx} className="sidebar-session-item">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '11px', color: '#1e1633' }}>
-                        {s.scenario} · {s.focus}
-                      </strong>
-                      <span className={`tiny-badge ${s.verdict === 'improved' ? 'improved' : ''}`}>
-                        {s.verdict === 'improved' ? '✓ Improved' : 'Similar'}
-                      </span>
-                    </div>
-                    <div className="tiny" style={{ color: '#7a718c', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Score lift: {s.beforeScore}/5 → {s.afterScore}/5</span>
-                      <span>{s.completedAt}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                className="btn ghost"
-                style={{ width: '100%', padding: '6px 0', fontSize: '11px', color: '#6d28d9', textAlign: 'center', marginTop: '8px' }}
-                onClick={loadHistory}
-              >
-                📜 View Full Practice History ({Math.max(totalCompletedSessions, historySessions.length)})
-              </button>
             </div>
           </div>
         )}
@@ -3144,9 +3115,14 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
           {/* Footer Disclaimer & Links */}
           <div className="footer">
             <span>Scores are practice signals, not a validated assessment. All transcripts are sent securely.</span>
-            <button className="reset" onClick={handleStartOver}>
-              Start over
-            </button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <button className="reset" onClick={loadHistory}>
+                Practice history
+              </button>
+              <button className="reset" onClick={handleStartOver}>
+                Start over
+              </button>
+            </div>
           </div>
         </div>
       </main>
