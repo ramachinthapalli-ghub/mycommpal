@@ -168,6 +168,7 @@ export default function MyCommPalApp() {
 
   // Track verified completed practice sessions for current device/user
   const [completedPracticeList, setCompletedPracticeList] = useState<CompletedPracticeSession[]>([]);
+  const [practicedSessionsCount, setPracticedSessionsCount] = useState<number>(0);
   const consecutiveSpeechErrorsRef = useRef(0);
 
   useEffect(() => {
@@ -187,6 +188,14 @@ export default function MyCommPalApp() {
       if (savedMin) setPlanMinutes(Number(savedMin));
       const savedFreq = localStorage.getItem('mycommpal_plan_frequency');
       if (savedFreq) setPlanFrequency(Number(savedFreq));
+
+      // Load active cycle practiced sessions count
+      const savedCount = localStorage.getItem('mycommpal_cycle_practiced_count');
+      if (savedCount !== null) {
+        setPracticedSessionsCount(Number(savedCount));
+      } else {
+        setPracticedSessionsCount(0);
+      }
 
       // Load verified completed practice sessions for current user/device
       const savedCompleted = localStorage.getItem('mycommpal_completed_sessions');
@@ -438,7 +447,9 @@ export default function MyCommPalApp() {
     setAssessment(null);
     setComparison(null);
     setCompletedPracticeList([]);
+    setPracticedSessionsCount(0);
     try {
+      localStorage.removeItem('mycommpal_cycle_practiced_count');
       localStorage.removeItem('mycommpal_completed_sessions');
       localStorage.removeItem('mycommpal_practice_completed');
       localStorage.removeItem('mycommpal_streak');
@@ -881,6 +892,16 @@ export default function MyCommPalApp() {
 
       setComparison(data);
 
+      // Refresh active cycle practice sessions count immediately
+      setPracticedSessionsCount(prev => {
+        const next = prev + 1;
+        try {
+          localStorage.setItem('mycommpal_cycle_practiced_count', String(next));
+          localStorage.setItem('mycommpal_practice_completed', 'true');
+        } catch (e) {}
+        return next;
+      });
+
       // Create verified completed practice record
       const currentFocus = assessment?.focus || 'Articulation';
       const baselineScore = assessment?.scores ? (assessment.scores[assessment.focus] || 2) : 2;
@@ -1037,6 +1058,15 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
 
   function handleStartOver() {
     startNewPracticeSession();
+    // Reset cycle completed practice sessions count so progress streak is hidden and starts fresh
+    setPracticedSessionsCount(0);
+    setCompletedPracticeList([]);
+    try {
+      localStorage.removeItem('mycommpal_cycle_practiced_count');
+      localStorage.removeItem('mycommpal_completed_sessions');
+      localStorage.removeItem('mycommpal_practice_completed');
+      localStorage.removeItem('mycommpal_streak');
+    } catch (e) {}
   }
 
   function handleNextScenario() {
@@ -1266,20 +1296,8 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
   // =========================================================================
   // VIEW 2: AUTHENTICATED APP (Full 4-Screen HTML Prototype Flow)
   // =========================================================================
-  // Number of sessions the user actually practiced across database history and current session
-  const dbPracticedSessions = historySessions.filter(
-    (s: any) => s.comparison || s.retryScores || (s.retryTranscript && s.retryTranscript.length >= 35)
-  );
-  const allPracticedIds = new Set([
-    ...dbPracticedSessions.map((s: any) => s.id),
-    ...completedPracticeList.map(s => s.id),
-  ]);
-  const totalCompletedSessions = Math.max(
-    allPracticedIds.size,
-    dbPracticedSessions.length,
-    completedPracticeList.length,
-    comparison ? 1 : 0
-  );
+  // Active practice cycle completed sessions count
+  const totalCompletedSessions = practicedSessionsCount;
   const hasCompletedPracticeSession = totalCompletedSessions > 0;
 
   // Dynamic practice guidance target config (Cadence matching)
