@@ -126,11 +126,20 @@ export default function MyCommPalApp() {
   const [isRecording1, setIsRecording1] = useState(false);
   const [isRecording2, setIsRecording2] = useState(false);
   const [isRecordingSituation, setIsRecordingSituation] = useState(false);
+  const [isTranscribing1, setIsTranscribing1] = useState(false);
+  const [isTranscribing2, setIsTranscribing2] = useState(false);
+  const [isTranscribingSituation, setIsTranscribingSituation] = useState(false);
   const [recTimer1, setRecTimer1] = useState('00:00');
   const [recTimer2, setRecTimer2] = useState('00:00');
   const [recTimerSituation, setRecTimerSituation] = useState('00:00');
   const speechBaseTextRef = useRef('');
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<any>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const isUsingMediaRecorderRef = useRef(false);
+  const discardAudioRef = useRef(false);
+  const restartTimeoutRef = useRef<any>(null);
   const timerIntervalRef = useRef<any>(null);
   const shouldRecordRef = useRef(false);
   const activeInputIndexRef = useRef<1 | 2 | 3 | null>(null);
@@ -516,14 +525,23 @@ export default function MyCommPalApp() {
     return currentWords.join(' ');
   }
 
-  // Speech Recognition (Mobile-resilient with automatic segment recovery & phrase deduplication)
-  async function toggleSpeech(inputIndex: 1 | 2 | 3) {
+  // Speech Recognition & Voice Capture (Dual-engine: Real-time Web Speech + Resilient Whisper Audio Fallback)
+  function toggleSpeech(inputIndex: 1 | 2 | 3) {
     const isRecording =
       inputIndex === 1
         ? isRecording1
         : inputIndex === 2
         ? isRecording2
         : isRecordingSituation;
+
+    const isTranscribing =
+      inputIndex === 1
+        ? isTranscribing1
+        : inputIndex === 2
+        ? isTranscribing2
+        : isTranscribingSituation;
+
+    if (isTranscribing) return;
 
     if (isRecording) {
       stopSpeech();
@@ -532,37 +550,14 @@ export default function MyCommPalApp() {
 
     // Stop any existing active recording session first
     stopSpeech();
+    discardAudioRef.current = false;
 
-    // Blur any active focused input so mobile virtual keyboard doesn't suppress audio capture
+    // Blur any active focused input so mobile virtual keyboard doesn't suppress audio capture or shift viewport
     if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert('Speech transcription is not supported in this browser. Please type your response directly into the box.');
-      return;
-    }
-
-    // Explicitly prime / request mic stream via getUserMedia on mobile (crucial for iOS Safari & Android Chrome)
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Release tracks so SpeechRecognition has sole ownership of audio hardware
-        stream.getTracks().forEach(track => track.stop());
-      } catch (err: any) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          alert('Microphone access was not permitted. Please allow microphone permission in your mobile browser settings to speak your response.');
-          return;
-        }
-      }
-    }
-
-    shouldRecordRef.current = true;
-    activeInputIndexRef.current = inputIndex;
-
+    // Capture initial text so newly spoken words append cleanly without deleting existing text
     const initialText = (
       inputIndex === 1
         ? answer1Ref.current
@@ -572,6 +567,25 @@ export default function MyCommPalApp() {
     ).trim();
     speechBaseTextRef.current = initialText;
 
+    shouldRecordRef.current = true;
+    activeInputIndexRef.current = inputIndex;
+
+    // Detect browser platform:
+    // On iOS, Apple limits Web Speech API to Safari only. Chrome on iOS (CriOS) and Firefox (FxiOS)
+    // are forced to use Apple's WKWebView without access to Siri dictation, so they require MediaRecorder.
+    const isIOSDevice = typeof navigator !== 'undefined' && (
+      /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+    const isIOSNonSafari = isIOSDevice && /CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent);
+    const SpeechRecognition =
+      typeof window !== 'undefined'
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
+
+    const canUseNativeSpeech = !isIOSNonSafari && !!SpeechRecognition;
+
+    // Start UI timer immediately
     if (inputIndex === 1) {
       setIsRecording1(true);
       setRecTimer1('00:00');
@@ -592,7 +606,13 @@ export default function MyCommPalApp() {
       else setRecTimerSituation(formatted);
     }, 250);
 
-    startRecognitionSession(inputIndex);
+    if (canUseNativeSpeech) {
+      isUsingMediaRecorderRef.current = false;
+      startRecognitionSession(inputIndex);
+    } else {
+      isUsingMediaRecorderRef.current = true;
+      startMediaRecorderSession(inputIndex);
+    }
   }
 
   function startRecognitionSession(inputIndex: 1 | 2 | 3) {
@@ -600,7 +620,10 @@ export default function MyCommPalApp() {
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      startMediaRecorderSession(inputIndex);
+      return;
+    }
 
     const isIOSDevice = typeof navigator !== 'undefined' && (
       /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -610,116 +633,48 @@ export default function MyCommPalApp() {
     try {
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
-      // Critical: iOS Safari crashes or immediately terminates if continuous is true!
-      // Setting continuous=false on iOS allows single-utterance speech to work seamlessly,
-      // with our onend auto-restart loop capturing subsequent utterances without audio drop.
+      // Critical for iOS Safari: continuous=false prevents immediate silent termination.
+      // Onend loop will restart seamlessly when pause or utterance boundary occurs.
       recognition.continuous = !isIOSDevice;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
+      recognition.onstart = () => {
+        consecutiveSpeechErrorsRef.current = 0;
+      };
+
       recognition.onresult = (event: any) => {
-        // Collect progressive segments from event.results
-        // Mobile Chrome/Brave frequently emits incremental supersets (e.g. "A", "A B", "A B C")
-        // where each result contains the previous result as a prefix.
-        const segments: string[] = [];
+        let finalTranscript = '';
+        let interimTranscript = '';
 
         for (let i = 0; i < event.results.length; i++) {
-          const item = event.results[i];
-          const text = (item[0]?.transcript || '').trim();
+          const res = event.results[i];
+          const text = (res[0]?.transcript || '').trim();
           if (!text) continue;
 
-          if (segments.length > 0) {
-            const last = segments[segments.length - 1];
-            const lastLower = last.toLowerCase();
-            const textLower = text.toLowerCase();
-
-            // 1. If text starts with last, text is an expanded replacement of last!
-            if (textLower.startsWith(lastLower)) {
-              segments[segments.length - 1] = text;
-              continue;
-            }
-
-            // 2. If last starts with text, last was already more complete
-            if (lastLower.startsWith(textLower)) {
-              continue;
-            }
-
-            // 3. Word-level overlap detection: if text begins with the tail of last
-            const lastWords = last.split(/\s+/);
-            const textWords = text.split(/\s+/);
-            let overlapCount = 0;
-            for (let k = Math.min(lastWords.length, textWords.length, 12); k >= 1; k--) {
-              const lastTail = lastWords.slice(-k).join(' ').toLowerCase();
-              const textHead = textWords.slice(0, k).join(' ').toLowerCase();
-              if (lastTail === textHead) {
-                overlapCount = k;
-                break;
-              }
-            }
-            if (overlapCount > 0) {
-              const newWords = textWords.slice(overlapCount);
-              if (newWords.length > 0) {
-                segments.push(newWords.join(' '));
-              }
-              continue;
-            }
-          }
-
-          segments.push(text);
-        }
-
-        const rawCombined = segments.join(' ').trim();
-        const cleanedSpoken = cleanDuplicatePhrases(rawCombined);
-
-        // Merge cleanly with speechBaseTextRef (handling any overlap between restart sessions)
-        let currentSpoken = cleanedSpoken;
-        const base = speechBaseTextRef.current.trim();
-        if (base) {
-          const baseLower = base.toLowerCase();
-          const spokenLower = cleanedSpoken.toLowerCase();
-
-          if (spokenLower.startsWith(baseLower)) {
-            currentSpoken = cleanedSpoken;
-          } else if (baseLower.endsWith(spokenLower)) {
-            currentSpoken = base;
+          if (res.isFinal) {
+            finalTranscript += (finalTranscript ? ' ' : '') + text;
           } else {
-            // Check word overlap at boundary
-            const baseWords = base.split(/\s+/);
-            const spokenWords = cleanedSpoken.split(/\s+/);
-            let boundaryOverlap = 0;
-            for (let k = Math.min(baseWords.length, spokenWords.length, 12); k >= 1; k--) {
-              const baseEnd = baseWords.slice(-k).join(' ').toLowerCase();
-              const spokenStart = spokenWords.slice(0, k).join(' ').toLowerCase();
-              if (baseEnd === spokenStart) {
-                boundaryOverlap = k;
-                break;
-              }
-            }
-            if (boundaryOverlap > 0) {
-              currentSpoken = `${base} ${spokenWords.slice(boundaryOverlap).join(' ')}`.trim();
-            } else {
-              currentSpoken = `${base} ${cleanedSpoken}`.trim();
-            }
+            interimTranscript += (interimTranscript ? ' ' : '') + text;
           }
         }
 
-        currentSpoken = cleanDuplicatePhrases(currentSpoken);
+        const sessionSpoken = (finalTranscript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+        const base = speechBaseTextRef.current.trim();
+        let fullText = base ? (sessionSpoken ? `${base} ${sessionSpoken}` : base) : sessionSpoken;
+        fullText = cleanDuplicatePhrases(fullText);
 
         consecutiveSpeechErrorsRef.current = 0;
         if (inputIndex === 1) {
-          setAnswer1(currentSpoken);
-          answer1Ref.current = currentSpoken;
+          setAnswer1(fullText);
+          answer1Ref.current = fullText;
         } else if (inputIndex === 2) {
-          setAnswer2(currentSpoken);
-          answer2Ref.current = currentSpoken;
+          setAnswer2(fullText);
+          answer2Ref.current = fullText;
         } else if (inputIndex === 3) {
-          setCustomSituation(currentSpoken);
-          customSituationRef.current = currentSpoken;
+          setCustomSituation(fullText);
+          customSituationRef.current = fullText;
         }
-      };
-
-      recognition.onstart = () => {
-        consecutiveSpeechErrorsRef.current = 0;
       };
 
       recognition.onerror = (e: any) => {
@@ -728,18 +683,19 @@ export default function MyCommPalApp() {
           return;
         }
         consecutiveSpeechErrorsRef.current += 1;
-        if (e.error === 'not-allowed' || e.error === 'audio-capture') {
-          console.error('Microphone permission denied:', e.error);
+        console.warn('Speech recognition warning:', e.error);
+
+        if (e.error === 'not-allowed' || e.error === 'audio-capture' || e.error === 'service-not-allowed') {
+          console.warn('Native speech recognition blocked or not allowed, switching to MediaRecorder fallback...');
           stopSpeech();
-          alert('Could not access microphone. Please grant permission in your mobile browser settings or type your answer.');
+          alert('Microphone or dictation access was not permitted. Please allow microphone permission in your mobile browser settings or type your response directly.');
           return;
         }
+
         if (consecutiveSpeechErrorsRef.current >= 4) {
           console.warn('Multiple consecutive speech recognition errors, stopping mic');
           stopSpeech();
-          return;
         }
-        console.warn('Speech recognition warning:', e.error);
       };
 
       recognition.onend = () => {
@@ -754,11 +710,11 @@ export default function MyCommPalApp() {
               : customSituationRef.current
           ).trim();
 
-          setTimeout(() => {
+          restartTimeoutRef.current = setTimeout(() => {
             if (shouldRecordRef.current && activeInputIndexRef.current === inputIndex) {
               startRecognitionSession(inputIndex);
             }
-          }, isIOSDevice ? 150 : 80);
+          }, isIOSDevice ? 250 : 80);
         } else {
           stopSpeech();
         }
@@ -767,13 +723,117 @@ export default function MyCommPalApp() {
       recognitionRef.current = recognition;
       recognition.start();
     } catch (e) {
-      console.warn('Speech recognition initialization error:', e);
-      if (shouldRecordRef.current) {
-        setTimeout(() => {
-          if (shouldRecordRef.current) startRecognitionSession(inputIndex);
-        }, 150);
+      console.warn('Speech recognition start failed, attempting MediaRecorder fallback:', e);
+      if (shouldRecordRef.current && activeInputIndexRef.current === inputIndex) {
+        startMediaRecorderSession(inputIndex);
       } else {
         stopSpeech();
+      }
+    }
+  }
+
+  async function startMediaRecorderSession(inputIndex: 1 | 2 | 3) {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      stopSpeech();
+      alert('Microphone audio recording is not supported in this browser. Please type your response directly into the box.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
+
+      let mimeType = '';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+          mimeType = 'audio/aac';
+        }
+      }
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const chunks = [...audioChunksRef.current];
+        audioChunksRef.current = [];
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(t => t.stop());
+          mediaStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+
+        if (discardAudioRef.current || chunks.length === 0) return;
+
+        const blobType = mimeType || chunks[0]?.type || 'audio/webm';
+        const audioBlob = new Blob(chunks, { type: blobType });
+
+        if (audioBlob.size < 500) {
+          return; // Discard tiny clicks / empty tap
+        }
+
+        if (inputIndex === 1) setIsTranscribing1(true);
+        else if (inputIndex === 2) setIsTranscribing2(true);
+        else setIsTranscribingSituation(true);
+
+        try {
+          const extension = blobType.includes('mp4') || blobType.includes('m4a') || blobType.includes('aac') ? 'mp4' : 'webm';
+          const formData = new FormData();
+          formData.append('audio', audioBlob, `recording.${extension}`);
+
+          const res = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text) {
+              const base = speechBaseTextRef.current.trim();
+              const fullText = cleanDuplicatePhrases(base ? `${base} ${data.text.trim()}` : data.text.trim());
+              if (inputIndex === 1) {
+                setAnswer1(fullText);
+                answer1Ref.current = fullText;
+              } else if (inputIndex === 2) {
+                setAnswer2(fullText);
+                answer2Ref.current = fullText;
+              } else {
+                setCustomSituation(fullText);
+                customSituationRef.current = fullText;
+              }
+            }
+          } else {
+            console.warn('Transcription service response was not ok:', res.status);
+          }
+        } catch (err) {
+          console.error('Audio transcription request error:', err);
+        } finally {
+          setIsTranscribing1(false);
+          setIsTranscribing2(false);
+          setIsTranscribingSituation(false);
+        }
+      };
+
+      recorder.start(250);
+    } catch (err: any) {
+      console.error('getUserMedia / MediaRecorder error:', err);
+      stopSpeech();
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        alert('Microphone access was not permitted. Please allow microphone permission in your mobile browser settings.');
+      } else {
+        alert('Could not access microphone. Please type your response directly into the box.');
       }
     }
   }
@@ -782,6 +842,12 @@ export default function MyCommPalApp() {
     shouldRecordRef.current = false;
     activeInputIndexRef.current = null;
     consecutiveSpeechErrorsRef.current = 0;
+
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+
     if (recognitionRef.current) {
       try {
         // Disconnect all event listeners so dying instance cannot fire callbacks or restart
@@ -793,10 +859,25 @@ export default function MyCommPalApp() {
       } catch (e) {}
       recognitionRef.current = null;
     }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {}
+    }
+
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      } catch (e) {}
+      mediaStreamRef.current = null;
+    }
+
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
+
     setIsRecording1(false);
     setIsRecording2(false);
     setIsRecordingSituation(false);
@@ -1066,10 +1147,15 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
   }
 
   function startNewPracticeSession() {
+    discardAudioRef.current = true;
     stopSpeech();
     setAnswer1('');
     setAnswer2('');
     setCustomSituation('');
+    answer1Ref.current = '';
+    answer2Ref.current = '';
+    customSituationRef.current = '';
+    speechBaseTextRef.current = '';
     setAssessment(null);
     setComparison(null);
     setPracticeAttempt(1);
@@ -1620,18 +1706,22 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                     <div className="tiny" style={{ textAlign: 'center', fontWeight: 700, color: '#6545e8' }}>
                       {isRecordingSituation
                         ? '🔴 Listening… describe your situation (Tap mic when done)'
+                        : isTranscribingSituation
+                        ? '⏳ Transcribing your speech with Vira AI…'
                         : '🎙️ Tap mic to speak your situation, or type below'}
                     </div>
                     <div className="record">
                       <button
                         type="button"
-                        className={`mic ${isRecordingSituation ? 'recording' : ''}`}
+                        className={`mic ${isRecordingSituation ? 'recording' : ''} ${isTranscribingSituation ? 'transcribing' : ''}`}
                         onClick={() => toggleSpeech(3)}
-                        title="Tap to speak your situation"
+                        disabled={isTranscribingSituation}
+                        title={isTranscribingSituation ? 'Transcribing...' : 'Tap to speak your situation'}
                       >
-                        🎙️
+                        {isTranscribingSituation ? '⏳' : '🎙️'}
                       </button>
                       {isRecordingSituation && <span className="counter">{recTimerSituation}</span>}
+                      {isTranscribingSituation && <span className="counter" style={{ color: '#7c3aed' }}>Processing…</span>}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
@@ -1645,8 +1735,10 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                             className="btn ghost"
                             style={{ padding: '3px 8px', fontSize: '11.5px', color: '#887c9c', borderRadius: '8px' }}
                             onClick={() => {
+                              discardAudioRef.current = true;
                               stopSpeech();
                               setCustomSituation('');
+                              customSituationRef.current = '';
                               speechBaseTextRef.current = '';
                             }}
                           >
@@ -1688,18 +1780,24 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
               {/* Speech Input Box */}
               <div className="speech">
                 <div className="tiny" style={{ textAlign: 'center', fontWeight: 700, color: '#6545e8' }}>
-                  {isRecording1 ? '🔴 Listening… speak naturally (Tap mic when done)' : 'Tap mic to speak, or type below'}
+                  {isRecording1
+                    ? '🔴 Listening… speak naturally (Tap mic when done)'
+                    : isTranscribing1
+                    ? '⏳ Transcribing your speech with Vira AI…'
+                    : 'Tap mic to speak, or type below'}
                 </div>
                 <div className="record">
                   <button
                     type="button"
-                    className={`mic ${isRecording1 ? 'recording' : ''}`}
+                    className={`mic ${isRecording1 ? 'recording' : ''} ${isTranscribing1 ? 'transcribing' : ''}`}
                     onClick={() => toggleSpeech(1)}
-                    title="Tap to speak"
+                    disabled={isTranscribing1}
+                    title={isTranscribing1 ? 'Transcribing...' : 'Tap to speak'}
                   >
-                    🎙️
+                    {isTranscribing1 ? '⏳' : '🎙️'}
                   </button>
                   {isRecording1 && <span className="counter">{recTimer1}</span>}
+                  {isTranscribing1 && <span className="counter" style={{ color: '#7c3aed' }}>Processing…</span>}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -1712,8 +1810,10 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                       className="btn ghost"
                       style={{ padding: '3px 8px', fontSize: '11.5px', color: '#887c9c', borderRadius: '8px' }}
                       onClick={() => {
+                        discardAudioRef.current = true;
                         stopSpeech();
                         setAnswer1('');
+                        answer1Ref.current = '';
                         speechBaseTextRef.current = '';
                       }}
                     >
@@ -2735,18 +2835,24 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
               {/* Retry Speech / Text Input */}
               <div className="speech">
                 <div className="tiny" style={{ textAlign: 'center', fontWeight: 700, color: '#6545e8' }}>
-                  {isRecording2 ? '🔴 Listening… speak your retry clearly (Tap mic when done)' : 'Tap mic to speak, or type your retry'}
+                  {isRecording2
+                    ? '🔴 Listening… speak your retry clearly (Tap mic when done)'
+                    : isTranscribing2
+                    ? '⏳ Transcribing your speech with Vira AI…'
+                    : 'Tap mic to speak, or type your retry'}
                 </div>
                 <div className="record">
                   <button
                     type="button"
-                    className={`mic ${isRecording2 ? 'recording' : ''}`}
+                    className={`mic ${isRecording2 ? 'recording' : ''} ${isTranscribing2 ? 'transcribing' : ''}`}
                     onClick={() => toggleSpeech(2)}
-                    title="Tap to speak retry"
+                    disabled={isTranscribing2}
+                    title={isTranscribing2 ? 'Transcribing...' : 'Tap to speak retry'}
                   >
-                    🎙️
+                    {isTranscribing2 ? '⏳' : '🎙️'}
                   </button>
                   {isRecording2 && <span className="counter">{recTimer2}</span>}
+                  {isTranscribing2 && <span className="counter" style={{ color: '#7c3aed' }}>Processing…</span>}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
@@ -2760,8 +2866,10 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                         className="btn ghost"
                         style={{ padding: '3px 8px', fontSize: '11.5px', color: '#887c9c', borderRadius: '8px' }}
                         onClick={() => {
+                          discardAudioRef.current = true;
                           stopSpeech();
                           setAnswer2('');
+                          answer2Ref.current = '';
                           speechBaseTextRef.current = '';
                         }}
                       >

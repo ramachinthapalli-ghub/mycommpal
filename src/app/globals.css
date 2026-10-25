@@ -513,9 +513,21 @@ textarea {
   animation: pulse 1s infinite alternate;
 }
 
+.mic.transcribing {
+  background: #7a47ee;
+  animation: pulse-transcribing 1s infinite alternate;
+  cursor: wait;
+}
+
 @keyframes pulse {
   to {
     box-shadow: 0 0 0 14px rgba(230, 95, 132, 0.25);
+  }
+}
+
+@keyframes pulse-transcribing {
+  to {
+    box-shadow: 0 0 0 14px rgba(122, 71, 238, 0.25);
   }
 }
 
