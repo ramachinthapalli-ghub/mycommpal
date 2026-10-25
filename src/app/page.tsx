@@ -46,6 +46,16 @@ interface PracticeStreak {
   historyDates: string[]; // YYYY-MM-DD
 }
 
+interface CompletedPracticeSession {
+  id: string;
+  scenario: string;
+  focus: string;
+  beforeScore: number;
+  afterScore: number;
+  verdict?: string;
+  completedAt: string;
+}
+
 function getTodayDateString(): string {
   const now = new Date();
   return now.toISOString().split('T')[0];
@@ -156,6 +166,10 @@ export default function MyCommPalApp() {
     historyDates: [],
   });
 
+  // Track verified completed practice sessions for current device/user
+  const [completedPracticeList, setCompletedPracticeList] = useState<CompletedPracticeSession[]>([]);
+  const consecutiveSpeechErrorsRef = useRef(0);
+
   useEffect(() => {
     answer1Ref.current = answer1;
   }, [answer1]);
@@ -173,6 +187,15 @@ export default function MyCommPalApp() {
       if (savedMin) setPlanMinutes(Number(savedMin));
       const savedFreq = localStorage.getItem('mycommpal_plan_frequency');
       if (savedFreq) setPlanFrequency(Number(savedFreq));
+
+      // Load verified completed practice sessions for current user/device
+      const savedCompleted = localStorage.getItem('mycommpal_completed_sessions');
+      if (savedCompleted) {
+        const parsed = JSON.parse(savedCompleted);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCompletedPracticeList(parsed);
+        }
+      }
 
       const practiceCompleted = localStorage.getItem('mycommpal_practice_completed') === 'true';
       const saved = localStorage.getItem('mycommpal_streak');
@@ -194,33 +217,26 @@ export default function MyCommPalApp() {
       }
     } catch (e) {}
 
-    // Load recent history sessions in background
+    // Load recent history sessions in background ONLY for full history modal (do not alter streak or completed list)
     fetch('/api/sessions')
       .then(res => res.json())
       .then(data => {
         if (data.sessions && Array.isArray(data.sessions)) {
           setHistorySessions(data.sessions);
-          const practiceSessions = data.sessions.filter(
-            (s: any) => s.comparison || s.retryScores || (s.retryTranscript && s.retryTranscript.length >= 35)
-          );
-          if (practiceSessions.length > 0) {
-            try {
-              localStorage.setItem('mycommpal_practice_completed', 'true');
-            } catch (e) {}
-            setStreakData(prev => ({
-              ...prev,
-              totalSessions: Math.max(prev.totalSessions || 0, practiceSessions.length),
-              currentStreak: Math.max(prev.currentStreak || 0, 1),
-              longestStreak: Math.max(prev.longestStreak || 0, 1),
-              historyDates: Array.from(new Set([
-                ...(prev.historyDates || []),
-                ...practiceSessions.map((s: any) => s.createdAt ? s.createdAt.split('T')[0] : getTodayDateString())
-              ])),
-            }));
-          }
         }
       })
       .catch(() => {});
+
+    // Mobile visibility listener to safely pause speech if user switches apps
+    const handleVisibilityChange = () => {
+      if (document.hidden && shouldRecordRef.current) {
+        stopSpeech();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Mentor Assessment state
@@ -417,8 +433,16 @@ export default function MyCommPalApp() {
     setStep(0);
     setAnswer1('');
     setAnswer2('');
+    setPractice1Answer('');
+    setPracticeAttempt(1);
     setAssessment(null);
     setComparison(null);
+    setCompletedPracticeList([]);
+    try {
+      localStorage.removeItem('mycommpal_completed_sessions');
+      localStorage.removeItem('mycommpal_practice_completed');
+      localStorage.removeItem('mycommpal_streak');
+    } catch (e) {}
   }
 
   async function loadHistory() {
@@ -642,6 +666,7 @@ export default function MyCommPalApp() {
 
         currentSpoken = cleanDuplicatePhrases(currentSpoken);
 
+        consecutiveSpeechErrorsRef.current = 0;
         if (inputIndex === 1) {
           setAnswer1(currentSpoken);
           answer1Ref.current = currentSpoken;
@@ -654,16 +679,26 @@ export default function MyCommPalApp() {
         }
       };
 
+      recognition.onstart = () => {
+        consecutiveSpeechErrorsRef.current = 0;
+      };
+
       recognition.onerror = (e: any) => {
         // Normal mobile pause while thinking — do NOT abort recording!
         if (e.error === 'no-speech') {
           console.warn('Speech pause detected, maintaining active mic session...');
           return;
         }
+        consecutiveSpeechErrorsRef.current += 1;
         if (e.error === 'not-allowed' || e.error === 'audio-capture') {
           console.error('Microphone permission denied:', e.error);
           stopSpeech();
-          alert('Could not access microphone. Please grant permission or type your answer.');
+          alert('Could not access microphone. Please grant permission in your browser settings or type your answer.');
+          return;
+        }
+        if (consecutiveSpeechErrorsRef.current >= 3) {
+          console.warn('Multiple consecutive speech recognition errors, stopping mic');
+          stopSpeech();
           return;
         }
         console.warn('Speech recognition warning:', e.error);
@@ -708,6 +743,7 @@ export default function MyCommPalApp() {
   function stopSpeech() {
     shouldRecordRef.current = false;
     activeInputIndexRef.current = null;
+    consecutiveSpeechErrorsRef.current = 0;
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -844,10 +880,31 @@ export default function MyCommPalApp() {
       }
 
       setComparison(data);
-      // Mark practice session completed
-      try {
-        localStorage.setItem('mycommpal_practice_completed', 'true');
-      } catch (e) {}
+
+      // Create verified completed practice record
+      const currentFocus = assessment?.focus || 'Articulation';
+      const baselineScore = assessment?.scores ? (assessment.scores[assessment.focus] || 2) : 2;
+      const retryScore = data.focusAfter || 4;
+
+      const newSessionRecord: CompletedPracticeSession = {
+        id: data.savedSessionId || `session_${Date.now()}`,
+        scenario: (currentScenarioText || 'PM Scenario').slice(0, 42) + ((currentScenarioText || '').length > 42 ? '...' : ''),
+        focus: currentFocus,
+        beforeScore: baselineScore,
+        afterScore: retryScore,
+        verdict: data.verdict || 'improved',
+        completedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setCompletedPracticeList(prev => {
+        const filtered = prev.filter(s => s.id !== newSessionRecord.id);
+        const updated = [newSessionRecord, ...filtered];
+        try {
+          localStorage.setItem('mycommpal_completed_sessions', JSON.stringify(updated));
+          localStorage.setItem('mycommpal_practice_completed', 'true');
+        } catch (e) {}
+        return updated;
+      });
 
       // Update consistency streak
       setStreakData(prev => {
@@ -1209,24 +1266,29 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
   // =========================================================================
   // VIEW 2: AUTHENTICATED APP (Full 4-Screen HTML Prototype Flow)
   // =========================================================================
-  // Filter verified completed practice sessions (where retry was submitted and evaluated)
-  const completedPracticeHistory = historySessions.filter(
-    s => s.comparison || s.retryScores || (s.retryTranscript && s.retryTranscript.length >= 35)
-  );
-
-  const totalCompletedSessions = Math.max(
-    completedPracticeHistory.length,
-    streakData.totalSessions || 0,
-    comparison ? 1 : 0
-  );
-
+  // Filter verified completed practice sessions (tracked per user/session)
+  const totalCompletedSessions = completedPracticeList.length;
   const hasCompletedPracticeSession = totalCompletedSessions > 0;
 
-  // Dynamic practice guidance target config (No days, strictly sessions)
-  const targetSessions = planFrequency || 3;
+  // Dynamic practice guidance target config (Cadence matching)
+  const targetSessions = Math.max(1, planFrequency || 3);
   const sessionDuration = planMinutes || 5;
-  const progressPercent = Math.min(100, Math.round((totalCompletedSessions / targetSessions) * 100));
-  const remainingInTarget = Math.max(0, targetSessions - totalCompletedSessions);
+
+  // Track progress within the user's active cadence cycle
+  // e.g., target = 3:
+  // 1 session completed -> 1/3
+  // 2 sessions completed -> 2/3
+  // 3 sessions completed -> 3/3 (Target reached!)
+  // 4 sessions completed -> 1/3 (in cycle 2)
+  const completedInCycle = totalCompletedSessions === 0 
+    ? 0 
+    : ((totalCompletedSessions - 1) % targetSessions) + 1;
+  const isTargetReached = totalCompletedSessions > 0 && totalCompletedSessions >= targetSessions;
+  const displayRatio = isTargetReached && totalCompletedSessions === targetSessions
+    ? `${targetSessions}/${targetSessions}`
+    : `${completedInCycle}/${targetSessions}`;
+  const progressPercent = Math.min(100, Math.round((completedInCycle / targetSessions) * 100));
+  const remainingInTarget = Math.max(0, targetSessions - completedInCycle);
 
   return (
     <div className="shell">
@@ -1289,8 +1351,8 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                 <span className="tiny" style={{ color: '#7b7194' }}>
                   Target: <strong>{targetSessions} {targetSessions === 1 ? 'session' : 'sessions'}</strong> ({sessionDuration}m each)
                 </span>
-                <span className="tiny" style={{ color: totalCompletedSessions >= targetSessions ? '#059669' : '#6d28d9', fontWeight: 700 }}>
-                  {totalCompletedSessions}/{targetSessions}
+                <span className="tiny" style={{ color: isTargetReached ? '#059669' : '#6d28d9', fontWeight: 700 }}>
+                  {displayRatio}
                 </span>
               </div>
 
@@ -1299,7 +1361,7 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                 <div
                   style={{
                     width: `${progressPercent}%`,
-                    background: totalCompletedSessions >= targetSessions
+                    background: isTargetReached
                       ? 'linear-gradient(90deg, #10b981, #059669)'
                       : 'linear-gradient(90deg, #7c3aed, #4f46e5)',
                     height: '100%',
@@ -1309,10 +1371,10 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                 />
               </div>
 
-              {/* Session Rep Badges (No days!) */}
+              {/* Session Rep Badges (Dynamically matches user cadence target) */}
               <div className="sidebar-session-pills">
                 {Array.from({ length: targetSessions }).map((_, idx) => {
-                  const isDone = idx < totalCompletedSessions;
+                  const isDone = idx < completedInCycle || isTargetReached;
                   return (
                     <span key={idx} className={`sidebar-rep-pill ${isDone ? 'done' : ''}`}>
                       <span>Rep {idx + 1}</span>
@@ -1323,7 +1385,7 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
               </div>
 
               <div className="tiny" style={{ color: '#554e66', margin: '4px 0 10px', fontSize: '11px' }}>
-                {totalCompletedSessions >= targetSessions
+                {isTargetReached
                   ? `🎉 Target reached! (${totalCompletedSessions} completed)`
                   : `🎯 ${remainingInTarget} more ${remainingInTarget === 1 ? 'session' : 'sessions'} to complete your ${targetSessions}-session goal`}
               </div>
@@ -1335,36 +1397,20 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                   <span className="tiny" style={{ color: '#7c3aed', fontWeight: 700 }}>{totalCompletedSessions}</span>
                 </div>
 
-                {/* If current session was just completed, show it */}
-                {comparison && (
-                  <div className="sidebar-session-item" style={{ background: '#f5f3ff', borderColor: '#ded5ff' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '11px', color: '#4338ca' }}>
-                        Current · {assessment?.focus || 'Articulation'}
-                      </strong>
-                      <span className="tiny-badge improved">✓ Just completed</span>
-                    </div>
-                    <div className="tiny" style={{ color: '#554e66', marginTop: '2px' }}>
-                      Score lift: {assessment?.scores[assessment.focus] || 3}/5 → {comparison.focusAfter}/5
-                    </div>
-                  </div>
-                )}
-
-                {/* Past Completed Sessions List */}
-                {completedPracticeHistory.slice(0, 3).map((s, idx) => (
+                {/* List of verified completed sessions */}
+                {completedPracticeList.slice(0, 3).map((s, idx) => (
                   <div key={s.id || idx} className="sidebar-session-item">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <strong style={{ fontSize: '11px', color: '#1e1633' }}>
-                        {s.goal || 'Practice'} · {s.focusSkill || 'Clarity'}
+                        {s.scenario} · {s.focus}
                       </strong>
-                      {s.comparison?.verdict && (
-                        <span className={`tiny-badge ${s.comparison.verdict === 'improved' ? 'improved' : ''}`}>
-                          {s.comparison.verdict === 'improved' ? '✓ Improved' : 'Similar'}
-                        </span>
-                      )}
+                      <span className={`tiny-badge ${s.verdict === 'improved' ? 'improved' : ''}`}>
+                        {s.verdict === 'improved' ? '✓ Improved' : 'Similar'}
+                      </span>
                     </div>
-                    <div className="tiny" style={{ color: '#7a718c', marginTop: '2px' }}>
-                      Score: {s.baselineScores?.[s.focusSkill as keyof Scores] || 3}/5 → {s.retryScores?.[s.focusSkill as keyof Scores] || s.comparison?.focusAfter || '4'}/5
+                    <div className="tiny" style={{ color: '#7a718c', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Score lift: {s.beforeScore}/5 → {s.afterScore}/5</span>
+                      <span>{s.completedAt}</span>
                     </div>
                   </div>
                 ))}
@@ -1376,7 +1422,7 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                 style={{ width: '100%', padding: '6px 0', fontSize: '11px', color: '#6d28d9', textAlign: 'center', marginTop: '8px' }}
                 onClick={loadHistory}
               >
-                📜 View Full Practice History ({totalCompletedSessions})
+                📜 View Full Practice History ({Math.max(totalCompletedSessions, historySessions.length)})
               </button>
             </div>
           </div>

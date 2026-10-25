@@ -1327,4 +1327,113 @@ textarea {
   color: #16654a;
 }
 
+/* Mobile-First Responsiveness & Cross-Browser Hardening (Safari & Chrome) */
+@media (max-width: 768px) {
+  /* Prevent iOS Safari 120% auto-zoom on input focus */
+  input, textarea, select, .input {
+    font-size: 16px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .shell {
+    display: block;
+    padding: 8px 10px;
+  }
+  .sidebar {
+    padding: 14px 12px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+  }
+  .brand {
+    font-size: 20px;
+    gap: 8px;
+  }
+  .panel {
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+  .top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 14px;
+  }
+  .top-actions {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .scenario-options {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .scenario-option {
+    padding: 13px 14px;
+    min-height: 48px;
+  }
+  .speech {
+    padding: 16px 12px;
+    border-radius: 16px;
+    margin-top: 14px;
+  }
+  .actions {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .actions .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 18px;
+    font-size: 14px;
+  }
+  .actions .btn.ghost {
+    order: 2;
+  }
+  .cards, .plan, .stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .modal {
+    padding: 20px 16px;
+    border-radius: 20px;
+    max-width: calc(100vw - 20px);
+    max-height: 88vh;
+  }
+  .login-card {
+    padding: 26px 18px;
+    border-radius: 22px;
+  }
+  .login-screen {
+    padding: 16px 12px;
+  }
+  .vira {
+    gap: 10px;
+  }
+  .bubble {
+    padding: 12px 14px;
+    border-radius: 15px;
+    font-size: 13.5px;
+  }
+  .avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+}
+
+@media (pointer: coarse) {
+  .btn, .mic, .scenario-option, .step, .accordion-trigger {
+    touch-action: manipulation;
+  }
+}
+
 
