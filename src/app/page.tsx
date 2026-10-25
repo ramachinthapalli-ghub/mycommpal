@@ -517,7 +517,7 @@ export default function MyCommPalApp() {
   }
 
   // Speech Recognition (Mobile-resilient with automatic segment recovery & phrase deduplication)
-  function toggleSpeech(inputIndex: 1 | 2 | 3) {
+  async function toggleSpeech(inputIndex: 1 | 2 | 3) {
     const isRecording =
       inputIndex === 1
         ? isRecording1
@@ -533,12 +533,31 @@ export default function MyCommPalApp() {
     // Stop any existing active recording session first
     stopSpeech();
 
+    // Blur any active focused input so mobile virtual keyboard doesn't suppress audio capture
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Speech transcription is not supported in this browser. Please type your response directly.');
+      alert('Speech transcription is not supported in this browser. Please type your response directly into the box.');
       return;
+    }
+
+    // Explicitly prime / request mic stream via getUserMedia on mobile (crucial for iOS Safari & Android Chrome)
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Release tracks so SpeechRecognition has sole ownership of audio hardware
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alert('Microphone access was not permitted. Please allow microphone permission in your mobile browser settings to speak your response.');
+          return;
+        }
+      }
     }
 
     shouldRecordRef.current = true;
@@ -583,11 +602,20 @@ export default function MyCommPalApp() {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
+    const isIOSDevice = typeof navigator !== 'undefined' && (
+      /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+
     try {
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
-      recognition.continuous = true;
+      // Critical: iOS Safari crashes or immediately terminates if continuous is true!
+      // Setting continuous=false on iOS allows single-utterance speech to work seamlessly,
+      // with our onend auto-restart loop capturing subsequent utterances without audio drop.
+      recognition.continuous = !isIOSDevice;
       recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
 
       recognition.onresult = (event: any) => {
         // Collect progressive segments from event.results
@@ -695,19 +723,18 @@ export default function MyCommPalApp() {
       };
 
       recognition.onerror = (e: any) => {
-        // Normal mobile pause while thinking — do NOT abort recording!
-        if (e.error === 'no-speech') {
-          console.warn('Speech pause detected, maintaining active mic session...');
+        // Normal mobile pause while thinking or aborted restart — do NOT abort recording!
+        if (e.error === 'no-speech' || e.error === 'aborted') {
           return;
         }
         consecutiveSpeechErrorsRef.current += 1;
         if (e.error === 'not-allowed' || e.error === 'audio-capture') {
           console.error('Microphone permission denied:', e.error);
           stopSpeech();
-          alert('Could not access microphone. Please grant permission in your browser settings or type your answer.');
+          alert('Could not access microphone. Please grant permission in your mobile browser settings or type your answer.');
           return;
         }
-        if (consecutiveSpeechErrorsRef.current >= 3) {
+        if (consecutiveSpeechErrorsRef.current >= 4) {
           console.warn('Multiple consecutive speech recognition errors, stopping mic');
           stopSpeech();
           return;
@@ -716,7 +743,7 @@ export default function MyCommPalApp() {
       };
 
       recognition.onend = () => {
-        // Mobile browsers automatically time out or terminate speech recognition after ~10 seconds.
+        // Mobile browsers automatically time out or terminate speech recognition after ~10 seconds or single utterance.
         // If user hasn't manually tapped stop, seamlessly restart listening!
         if (shouldRecordRef.current && activeInputIndexRef.current === inputIndex) {
           speechBaseTextRef.current = (
@@ -731,7 +758,7 @@ export default function MyCommPalApp() {
             if (shouldRecordRef.current && activeInputIndexRef.current === inputIndex) {
               startRecognitionSession(inputIndex);
             }
-          }, 80);
+          }, isIOSDevice ? 150 : 80);
         } else {
           stopSpeech();
         }
@@ -744,7 +771,7 @@ export default function MyCommPalApp() {
       if (shouldRecordRef.current) {
         setTimeout(() => {
           if (shouldRecordRef.current) startRecognitionSession(inputIndex);
-        }, 120);
+        }, 150);
       } else {
         stopSpeech();
       }
@@ -757,7 +784,12 @@ export default function MyCommPalApp() {
     consecutiveSpeechErrorsRef.current = 0;
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        // Disconnect all event listeners so dying instance cannot fire callbacks or restart
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.abort();
       } catch (e) {}
       recognitionRef.current = null;
     }
@@ -1631,7 +1663,11 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                       placeholder="Example: Tomorrow my VP will ask why we delayed the analytics dashboard. I need to explain the customer impact, technical trade-offs, and our new launch date."
                       rows={3}
                       value={customSituation}
-                      onChange={e => setCustomSituation(e.target.value)}
+                      onChange={e => {
+                        setCustomSituation(e.target.value);
+                        customSituationRef.current = e.target.value;
+                        speechBaseTextRef.current = e.target.value;
+                      }}
                     />
                     <div className="small" style={{ marginTop: '6px', color: '#7a718c' }}>
                       💡 Speak or type the context, who you are addressing, and the core challenge.
@@ -1689,7 +1725,11 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                   id="answer1"
                   placeholder="Speak with the mic or type your answer here... (minimum 35 characters)"
                   value={answer1}
-                  onChange={e => setAnswer1(e.target.value)}
+                  onChange={e => {
+                    setAnswer1(e.target.value);
+                    answer1Ref.current = e.target.value;
+                    speechBaseTextRef.current = e.target.value;
+                  }}
                 />
                 <div className="small" style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <span>{answer1.length} characters (min 35)</span>
@@ -2742,7 +2782,11 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                   id="answer2"
                   placeholder={practiceAttempt === 2 ? "Apply Vira's feedback and deliver your final rehearsal..." : "Apply your technique and share your second attempt here..."}
                   value={answer2}
-                  onChange={e => setAnswer2(e.target.value)}
+                  onChange={e => {
+                    setAnswer2(e.target.value);
+                    answer2Ref.current = e.target.value;
+                    speechBaseTextRef.current = e.target.value;
+                  }}
                 />
                 <div className="small" style={{ marginTop: '6px' }}>
                   {answer2.length} characters (min 35)
