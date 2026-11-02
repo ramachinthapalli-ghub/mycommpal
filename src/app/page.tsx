@@ -101,7 +101,7 @@ export default function MyCommPalApp() {
   const [authLoading, setAuthLoading] = useState(false);
   
   // Login Landing Dropdown State
-  const [showLoginDropdown, setShowLoginDropdown] = useState(true);
+  const [showLoginDropdown, setShowLoginDropdown] = useState(false);
   const [activeLoginMode, setActiveLoginMode] = useState<'phone' | 'email' | null>(null);
 
   const [authIdentifier, setAuthIdentifier] = useState('');
@@ -1343,38 +1343,63 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
             </div>
           )}
 
-          {/* Login Actions Section */}
+          {/* Login Actions Section (Clean primary button - options only appear on click) */}
           <div className="landing-cta-container">
-            {!activeLoginMode ? (
-              <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: '460px' }}>
-                <button
-                  type="button"
-                  className="landing-primary-cta"
-                  onClick={() => setShowLoginDropdown(prev => !prev)}
-                >
-                  <span>Login to MyCommPal →</span>
-                </button>
+            <button
+              type="button"
+              className="landing-primary-cta"
+              onClick={() => {
+                setShowLoginDropdown(true);
+                setAuthError(null);
+              }}
+            >
+              <span>Login to MyCommPal →</span>
+            </button>
+          </div>
 
-                {showLoginDropdown && (
-                  <div className="landing-dropdown-popover">
-                    <div className="landing-dropdown-header">
-                      <span>Choose sign-in method:</span>
-                      <button
-                        type="button"
-                        className="landing-popover-close"
-                        onClick={() => setShowLoginDropdown(false)}
-                        title="Close"
-                      >
-                        ✕
-                      </button>
-                    </div>
+          {/* Login Modal Overlay (Fits on one page with zero scroll, only opens when Login button clicked) */}
+          {showLoginDropdown && (
+            <div
+              className="landing-modal-backdrop"
+              onClick={() => {
+                setShowLoginDropdown(false);
+                setActiveLoginMode(null);
+                setAuthError(null);
+              }}
+            >
+              <div className="landing-modal-box" onClick={e => e.stopPropagation()}>
+                <div className="landing-modal-header">
+                  <div>
+                    <h3 className="landing-modal-title">Sign in to MyCommPal</h3>
+                    <p className="landing-modal-subtitle">Pick your preferred sign-in method</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="landing-modal-close"
+                    onClick={() => {
+                      setShowLoginDropdown(false);
+                      setActiveLoginMode(null);
+                      setAuthError(null);
+                    }}
+                    title="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
 
+                {authError && (
+                  <div className="landing-auth-error" style={{ margin: '0 0 14px' }}>
+                    {authError}
+                  </div>
+                )}
+
+                {!activeLoginMode ? (
+                  <div className="landing-modal-options">
                     <button
                       type="button"
                       className="landing-opt-item"
                       onClick={() => {
                         setActiveLoginMode('phone');
-                        setShowLoginDropdown(false);
                         setAuthError(null);
                       }}
                     >
@@ -1391,7 +1416,6 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                       className="landing-opt-item"
                       onClick={() => {
                         setActiveLoginMode('email');
-                        setShowLoginDropdown(false);
                         setAuthError(null);
                       }}
                     >
@@ -1406,7 +1430,10 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                     <button
                       type="button"
                       className="landing-opt-item guest-opt"
-                      onClick={loginAsGuest}
+                      onClick={() => {
+                        setShowLoginDropdown(false);
+                        loginAsGuest();
+                      }}
                     >
                       <span className="landing-opt-icon">👤</span>
                       <div className="landing-opt-meta">
@@ -1416,97 +1443,98 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                       <span className="landing-opt-arrow">→</span>
                     </button>
                   </div>
-                )}
-              </div>
-            ) : (
-              /* If Phone or Email OTP is chosen, show clean input form */
-              <div className="landing-otp-modal-box">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '17px', fontWeight: 800, margin: 0, color: '#171435' }}>
-                    {activeLoginMode === 'phone' ? '📱 Mobile OTP Login' : '✉️ Email OTP Login'}
-                  </h3>
-                  <button
-                    type="button"
-                    className="reset"
-                    style={{ fontSize: '13px', color: '#6545e8', fontWeight: 600 }}
-                    onClick={() => {
-                      setActiveLoginMode(null);
-                      setOtpSent(false);
-                      setAuthError(null);
-                      setAuthIdentifier('');
-                      setOtpCode('');
-                    }}
-                  >
-                    ← Other options
-                  </button>
-                </div>
-
-                {!otpSent ? (
-                  <form onSubmit={handleSendOtp} style={{ textAlign: 'left' }}>
-                    <label className="field" htmlFor="loginInput">
-                      {activeLoginMode === 'phone' ? 'Mobile phone number' : 'Work or personal email'}
-                    </label>
-                    <input
-                      id="loginInput"
-                      className="input"
-                      type={activeLoginMode === 'phone' ? 'tel' : 'email'}
-                      placeholder={activeLoginMode === 'phone' ? 'e.g. 9989624123 or +1 555-0199' : 'e.g. alex@company.com'}
-                      value={authIdentifier}
-                      onChange={e => setAuthIdentifier(e.target.value)}
-                      required
-                      autoFocus
-                    />
-                    <button
-                      type="submit"
-                      className="landing-primary-cta"
-                      style={{ width: '100%', marginTop: '16px', fontSize: '16px', padding: '14px' }}
-                      disabled={otpSending}
-                    >
-                      {otpSending ? 'Sending verification code...' : 'Send Verification Code →'}
-                    </button>
-                  </form>
                 ) : (
-                  <form onSubmit={handleVerifyOtp} style={{ textAlign: 'left' }}>
-                    <label className="field" htmlFor="otpInput">
-                      Enter 6-digit verification code sent to {authIdentifier}
-                    </label>
-                    <input
-                      id="otpInput"
-                      className="input"
-                      type="text"
-                      maxLength={6}
-                      placeholder="123456"
-                      value={otpCode}
-                      onChange={e => setOtpCode(e.target.value)}
-                      required
-                      autoFocus
-                    />
-                    <div className="tiny" style={{ color: '#6545e8', marginTop: '6px', fontWeight: 600 }}>
-                      {otpDevHint ? `${otpDevHint} (Auto-filled)` : '💡 Quick test code: 123456'}
-                    </div>
-                    <button
-                      type="submit"
-                      className="landing-primary-cta"
-                      style={{ width: '100%', marginTop: '16px', fontSize: '16px', padding: '14px' }}
-                      disabled={otpVerifying}
-                    >
-                      {otpVerifying ? 'Verifying...' : 'Verify & Enter MyCommPal →'}
-                    </button>
-                    <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                  <div className="landing-modal-form-wrap">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#6545e8' }}>
+                        {activeLoginMode === 'phone' ? '📱 Mobile Phone Sign In' : '✉️ Email Sign In'}
+                      </span>
                       <button
                         type="button"
                         className="reset"
-                        style={{ fontSize: '13px' }}
-                        onClick={() => setOtpSent(false)}
+                        style={{ fontSize: '12.5px', color: '#7b7194', textDecoration: 'underline' }}
+                        onClick={() => {
+                          setActiveLoginMode(null);
+                          setOtpSent(false);
+                          setAuthError(null);
+                          setAuthIdentifier('');
+                          setOtpCode('');
+                        }}
                       >
-                        ← Change {activeLoginMode === 'phone' ? 'phone number' : 'email'}
+                        ← Other methods
                       </button>
                     </div>
-                  </form>
+
+                    {!otpSent ? (
+                      <form onSubmit={handleSendOtp} style={{ textAlign: 'left' }}>
+                        <label className="field" htmlFor="modalLoginInput" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                          {activeLoginMode === 'phone' ? 'Mobile phone number' : 'Work or personal email'}
+                        </label>
+                        <input
+                          id="modalLoginInput"
+                          className="input"
+                          type={activeLoginMode === 'phone' ? 'tel' : 'email'}
+                          placeholder={activeLoginMode === 'phone' ? 'e.g. 9989624123 or +1 555-0199' : 'e.g. alex@company.com'}
+                          value={authIdentifier}
+                          onChange={e => setAuthIdentifier(e.target.value)}
+                          required
+                          autoFocus
+                          style={{ padding: '10px 14px', fontSize: '14px' }}
+                        />
+                        <button
+                          type="submit"
+                          className="landing-primary-cta"
+                          style={{ width: '100%', marginTop: '14px', fontSize: '15px', padding: '12px' }}
+                          disabled={otpSending}
+                        >
+                          {otpSending ? 'Sending verification code...' : 'Send Verification Code →'}
+                        </button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleVerifyOtp} style={{ textAlign: 'left' }}>
+                        <label className="field" htmlFor="modalOtpInput" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                          Enter 6-digit verification code sent to {authIdentifier}
+                        </label>
+                        <input
+                          id="modalOtpInput"
+                          className="input"
+                          type="text"
+                          maxLength={6}
+                          placeholder="123456"
+                          value={otpCode}
+                          onChange={e => setOtpCode(e.target.value)}
+                          required
+                          autoFocus
+                          style={{ padding: '10px 14px', fontSize: '15px', letterSpacing: '4px', textAlign: 'center', fontWeight: 700 }}
+                        />
+                        <div className="tiny" style={{ color: '#6545e8', marginTop: '6px', fontWeight: 600, fontSize: '11.5px' }}>
+                          {otpDevHint ? `${otpDevHint} (Auto-filled)` : '💡 Quick test code: 123456'}
+                        </div>
+                        <button
+                          type="submit"
+                          className="landing-primary-cta"
+                          style={{ width: '100%', marginTop: '14px', fontSize: '15px', padding: '12px' }}
+                          disabled={otpVerifying}
+                        >
+                          {otpVerifying ? 'Verifying...' : 'Verify & Enter MyCommPal →'}
+                        </button>
+                        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                          <button
+                            type="button"
+                            className="reset"
+                            style={{ fontSize: '12px' }}
+                            onClick={() => setOtpSent(false)}
+                          >
+                            ← Change {activeLoginMode === 'phone' ? 'phone number' : 'email'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );
