@@ -1210,201 +1210,302 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
   }
 
   // =========================================================================
-  // VIEW 1: INITIAL LOGIN SCREEN (Shown initially when user accesses the app)
+  // VIEW 1: INITIAL LOGIN SCREEN (Landing Showcase matching Vira AI Hero Design)
   // =========================================================================
   if (!user && !authLoading) {
     return (
-      <div className="login-screen">
-        <div className="login-card">
-          <div className="brand" style={{ justifyContent: 'center', marginBottom: '8px' }}>
-            <span className="brand-logo">✨</span>
-            <span className="wordmark">
+      <div className="landing-screen">
+        <div className="landing-card">
+          {/* Top Header / Brand */}
+          <div className="landing-brand-header">
+            <div className="landing-brand-icon">
+              <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="48" height="48" rx="14" fill="url(#brandGrad)" />
+                <path d="M 32 9 Q 32 22 45 22 Q 32 22 32 35 Q 32 22 19 22 Q 32 22 32 9 Z" fill="#FACC15" />
+                <path d="M 20 8 Q 20 14 26 14 Q 20 14 20 20 Q 20 14 14 14 Q 20 14 20 8 Z" fill="#FDE047" />
+                <path d="M 24 23 Q 24 28 29 28 Q 24 28 24 33 Q 24 28 19 28 Q 24 28 24 23 Z" fill="#FDE047" />
+                <defs>
+                  <linearGradient id="brandGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#635BFF" />
+                    <stop offset="1" stopColor="#3B82F6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <span className="landing-brand-title">
               My<span>Comm</span>Pal
             </span>
           </div>
-          <div className="tiny" style={{ marginBottom: '24px' }}>
-            Your personal AI communication mentor
-          </div>
 
-          <div className="vira" style={{ textAlign: 'left', marginBottom: '24px' }}>
-            <span className="avatar">👩‍💼</span>
-            <div className="bubble">
-              <b>Meet Vira</b>
-              <p>Practice realistic PM conversations, receive calibrated feedback, and strengthen your articulation one session at a time.</p>
+          {/* Main Headline */}
+          <h1 className="landing-headline">
+            Become a more impactful<br />
+            Product Manager in <span className="highlight-pill">every conversation.</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="landing-subtitle">
+            An AI communication mentor to prepare, practice and improve<br className="desktop-break" />
+            how you explain, influence and drive decisions.
+          </p>
+
+          {/* Center Showcase: 4 Feature Pills surrounding Vira */}
+          <div className="landing-hero-grid">
+            {/* Left Column (2 Pills) */}
+            <div className="landing-pills-col left">
+              {/* Pill 1: Prepare for a key meeting */}
+              <div className="hero-feature-pill">
+                <div className="pill-icon-circle target-bg">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="9" stroke="#ef4444" strokeWidth="2.2" />
+                    <circle cx="12" cy="12" r="5" stroke="#ef4444" strokeWidth="2.2" />
+                    <circle cx="12" cy="12" r="2" fill="#ef4444" />
+                    <path d="M20 4L13.5 10.5" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" />
+                    <path d="M16 4H20V8" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div className="pill-text">
+                  <div>Prepare for</div>
+                  <div>a key meeting</div>
+                </div>
+              </div>
+
+              {/* Pill 2: Real PM scenarios */}
+              <div className="hero-feature-pill">
+                <div className="pill-icon-circle chat-bg">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 11.5C20 15.642 16.418 19 12 19C10.5 19 9.09 18.6 7.85 17.9L3.5 19.5L4.85 15.65C3.7 14.45 3 12.9 3 11.5C3 7.358 6.582 4 12 4C17.418 4 20 7.358 20 11.5Z" stroke="#8b5cf6" strokeWidth="2.2" strokeLinejoin="round" />
+                    <circle cx="8" cy="11.5" r="1.25" fill="#8b5cf6" />
+                    <circle cx="12" cy="11.5" r="1.25" fill="#8b5cf6" />
+                    <circle cx="16" cy="11.5" r="1.25" fill="#8b5cf6" />
+                  </svg>
+                </div>
+                <div className="pill-text">
+                  <div>Real PM</div>
+                  <div>scenarios</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Center Column: Avatar + Meet Vira */}
+            <div className="landing-vira-center">
+              <div className="landing-avatar-wrapper">
+                <img
+                  src="/images/vira-avatar.png"
+                  alt="Vira - AI Communication Coach"
+                  className="landing-avatar-img"
+                />
+              </div>
+              <div className="meet-vira-divider">
+                <span className="meet-line left-line" />
+                <span className="meet-label">Meet Vira</span>
+                <span className="meet-line right-line" />
+              </div>
+            </div>
+
+            {/* Right Column (2 Pills) */}
+            <div className="landing-pills-col right">
+              {/* Pill 3: Personalized feedback */}
+              <div className="hero-feature-pill">
+                <div className="pill-icon-circle sparkle-bg">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 2.5 C10 6.5 12 8.5 16 9.5 C12 10.5 10 12.5 10 16.5 C10 12.5 8 10.5 4 9.5 C8 8.5 10 6.5 10 2.5Z" fill="#f59e0b" />
+                    <path d="M18 12 C18 14 19 15 21 15.5 C19 16 18 17 18 19 C18 17 17 16 15 15.5 C17 15 18 14 18 12Z" fill="#fbbf24" />
+                  </svg>
+                </div>
+                <div className="pill-text">
+                  <div>Personalized</div>
+                  <div>feedback</div>
+                </div>
+              </div>
+
+              {/* Pill 4: A clear improvement plan */}
+              <div className="hero-feature-pill">
+                <div className="pill-icon-circle chart-bg">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="13" width="3.5" height="8" rx="1.75" fill="#7c3aed" />
+                    <rect x="10.25" y="8" width="3.5" height="13" rx="1.75" fill="#7c3aed" />
+                    <rect x="16.5" y="3" width="3.5" height="18" rx="1.75" fill="#7c3aed" />
+                  </svg>
+                </div>
+                <div className="pill-text">
+                  <div>A clear</div>
+                  <div>improvement plan</div>
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* Auth Error Message (if any) */}
           {authError && (
-            <div
-              style={{
-                background: '#ffeef2',
-                border: '1px solid #ffccd7',
-                color: '#cf1746',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                fontSize: '13px',
-                marginBottom: '16px',
-                textAlign: 'left',
-              }}
-            >
+            <div className="landing-auth-error">
               {authError}
             </div>
           )}
 
-          {/* If an active mode (mobile or email) is selected, show the input form */}
-          {activeLoginMode ? (
-            <div style={{ textAlign: 'left', marginTop: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <h3 style={{ fontSize: '17px', fontWeight: 800 }}>
-                  {activeLoginMode === 'phone' ? '📱 Mobile OTP Login' : '✉️ Email OTP Login'}
-                </h3>
+          {/* Login Actions Section */}
+          <div className="landing-cta-container">
+            {!activeLoginMode ? (
+              <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: '460px' }}>
                 <button
                   type="button"
-                  className="reset"
-                  onClick={() => {
-                    setActiveLoginMode(null);
-                    setOtpSent(false);
-                    setAuthError(null);
-                    setAuthIdentifier('');
-                    setOtpCode('');
-                  }}
+                  className="landing-primary-cta"
+                  onClick={() => setShowLoginDropdown(prev => !prev)}
                 >
-                  ← Other options
+                  <span>Login to MyCommPal →</span>
                 </button>
-              </div>
 
-              {!otpSent ? (
-                <form onSubmit={handleSendOtp}>
-                  <label className="field" htmlFor="loginInput">
-                    {activeLoginMode === 'phone' ? 'Mobile phone number' : 'Work or personal email'}
-                  </label>
-                  <input
-                    id="loginInput"
-                    className="input"
-                    type={activeLoginMode === 'phone' ? 'tel' : 'email'}
-                    placeholder={activeLoginMode === 'phone' ? 'e.g. 9989624123 or +1 555-0199' : 'e.g. alex@company.com'}
-                    value={authIdentifier}
-                    onChange={e => setAuthIdentifier(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="btn"
-                    style={{ width: '100%', marginTop: '16px' }}
-                    disabled={otpSending}
-                  >
-                    {otpSending ? 'Sending verification code...' : 'Send Verification Code'}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp}>
-                  <label className="field" htmlFor="otpInput">
-                    Enter 6-digit verification code sent to {authIdentifier}
-                  </label>
-                  <input
-                    id="otpInput"
-                    className="input"
-                    type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={e => setOtpCode(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                  <div className="tiny" style={{ color: '#6545e8', marginTop: '6px', fontWeight: 600 }}>
-                    {otpDevHint ? `${otpDevHint} (Auto-filled)` : '💡 Quick test code: 123456'}
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn"
-                    style={{ width: '100%', marginTop: '16px' }}
-                    disabled={otpVerifying}
-                  >
-                    {otpVerifying ? 'Verifying...' : 'Verify & Enter MyCommPal'}
-                  </button>
-                  <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                {showLoginDropdown && (
+                  <div className="landing-dropdown-popover">
+                    <div className="landing-dropdown-header">
+                      <span>Choose sign-in method:</span>
+                      <button
+                        type="button"
+                        className="landing-popover-close"
+                        onClick={() => setShowLoginDropdown(false)}
+                        title="Close"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
                     <button
                       type="button"
-                      className="reset"
-                      onClick={() => setOtpSent(false)}
+                      className="landing-opt-item"
+                      onClick={() => {
+                        setActiveLoginMode('phone');
+                        setShowLoginDropdown(false);
+                        setAuthError(null);
+                      }}
                     >
-                      ← Change {activeLoginMode === 'phone' ? 'phone number' : 'email'}
+                      <span className="landing-opt-icon">📱</span>
+                      <div className="landing-opt-meta">
+                        <strong>Mobile OTP</strong>
+                        <span>Sign in with your mobile phone number</span>
+                      </div>
+                      <span className="landing-opt-arrow">→</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="landing-opt-item"
+                      onClick={() => {
+                        setActiveLoginMode('email');
+                        setShowLoginDropdown(false);
+                        setAuthError(null);
+                      }}
+                    >
+                      <span className="landing-opt-icon">✉️</span>
+                      <div className="landing-opt-meta">
+                        <strong>Email OTP</strong>
+                        <span>Sign in with your work or personal email</span>
+                      </div>
+                      <span className="landing-opt-arrow">→</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="landing-opt-item guest-opt"
+                      onClick={loginAsGuest}
+                    >
+                      <span className="landing-opt-icon">👤</span>
+                      <div className="landing-opt-meta">
+                        <strong>Continue as Guest</strong>
+                        <span>1-click immediate access, no codes needed</span>
+                      </div>
+                      <span className="landing-opt-arrow">→</span>
                     </button>
                   </div>
-                </form>
-              )}
-            </div>
-          ) : (
-            /* Otherwise, show the Login Button with Dropdown */
-            <div className="login-dropdown-wrapper">
-              <button
-                type="button"
-                className="btn login-trigger-btn"
-                onClick={() => setShowLoginDropdown(prev => !prev)}
-              >
-                <span>Login to MyCommPal</span>
-                <span style={{ fontSize: '18px', transition: 'transform 0.2s', transform: showLoginDropdown ? 'rotate(180deg)' : 'none' }}>
-                  ▾
-                </span>
-              </button>
-
-              {showLoginDropdown && (
-                <div className="login-dropdown-menu">
-                  {/* Option 1: Mobile OTP */}
+                )}
+              </div>
+            ) : (
+              /* If Phone or Email OTP is chosen, show clean input form */
+              <div className="landing-otp-modal-box">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 800, margin: 0, color: '#171435' }}>
+                    {activeLoginMode === 'phone' ? '📱 Mobile OTP Login' : '✉️ Email OTP Login'}
+                  </h3>
                   <button
                     type="button"
-                    className="login-dropdown-item"
+                    className="reset"
+                    style={{ fontSize: '13px', color: '#6545e8', fontWeight: 600 }}
                     onClick={() => {
-                      setActiveLoginMode('phone');
-                      setShowLoginDropdown(false);
+                      setActiveLoginMode(null);
+                      setOtpSent(false);
                       setAuthError(null);
+                      setAuthIdentifier('');
+                      setOtpCode('');
                     }}
                   >
-                    <span className="login-dropdown-icon">📱</span>
-                    <div>
-                      <strong>Mobile OTP</strong>
-                      <span>Sign in with your mobile phone number</span>
-                    </div>
-                  </button>
-
-                  {/* Option 2: Email OTP */}
-                  <button
-                    type="button"
-                    className="login-dropdown-item"
-                    onClick={() => {
-                      setActiveLoginMode('email');
-                      setShowLoginDropdown(false);
-                      setAuthError(null);
-                    }}
-                  >
-                    <span className="login-dropdown-icon">✉️</span>
-                    <div>
-                      <strong>Email OTP</strong>
-                      <span>Sign in with your email address</span>
-                    </div>
-                  </button>
-
-                  {/* Option 3: Continue as Guest */}
-                  <button
-                    type="button"
-                    className="login-dropdown-item"
-                    onClick={loginAsGuest}
-                  >
-                    <span className="login-dropdown-icon">👤</span>
-                    <div>
-                      <strong>Continue as Guest</strong>
-                      <span>1-click immediate access, no codes needed</span>
-                    </div>
+                    ← Other options
                   </button>
                 </div>
-              )}
-            </div>
-          )}
 
-          <div className="footer" style={{ justifyContent: 'center', marginTop: '30px' }}>
-            <span>Data persists in Supabase. All sessions are secure.</span>
+                {!otpSent ? (
+                  <form onSubmit={handleSendOtp} style={{ textAlign: 'left' }}>
+                    <label className="field" htmlFor="loginInput">
+                      {activeLoginMode === 'phone' ? 'Mobile phone number' : 'Work or personal email'}
+                    </label>
+                    <input
+                      id="loginInput"
+                      className="input"
+                      type={activeLoginMode === 'phone' ? 'tel' : 'email'}
+                      placeholder={activeLoginMode === 'phone' ? 'e.g. 9989624123 or +1 555-0199' : 'e.g. alex@company.com'}
+                      value={authIdentifier}
+                      onChange={e => setAuthIdentifier(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="landing-primary-cta"
+                      style={{ width: '100%', marginTop: '16px', fontSize: '16px', padding: '14px' }}
+                      disabled={otpSending}
+                    >
+                      {otpSending ? 'Sending verification code...' : 'Send Verification Code →'}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOtp} style={{ textAlign: 'left' }}>
+                    <label className="field" htmlFor="otpInput">
+                      Enter 6-digit verification code sent to {authIdentifier}
+                    </label>
+                    <input
+                      id="otpInput"
+                      className="input"
+                      type="text"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={otpCode}
+                      onChange={e => setOtpCode(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                    <div className="tiny" style={{ color: '#6545e8', marginTop: '6px', fontWeight: 600 }}>
+                      {otpDevHint ? `${otpDevHint} (Auto-filled)` : '💡 Quick test code: 123456'}
+                    </div>
+                    <button
+                      type="submit"
+                      className="landing-primary-cta"
+                      style={{ width: '100%', marginTop: '16px', fontSize: '16px', padding: '14px' }}
+                      disabled={otpVerifying}
+                    >
+                      {otpVerifying ? 'Verifying...' : 'Verify & Enter MyCommPal →'}
+                    </button>
+                    <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        className="reset"
+                        style={{ fontSize: '13px' }}
+                        onClick={() => setOtpSent(false)}
+                      >
+                        ← Change {activeLoginMode === 'phone' ? 'phone number' : 'email'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

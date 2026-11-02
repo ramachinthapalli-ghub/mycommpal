@@ -937,7 +937,403 @@ textarea {
   }
 }
 
-/* Login Landing Page Styles */
+/* =========================================================================
+   LANDING / LOGIN SHOWCASE (Matching Vira AI Mentor Hero)
+   ========================================================================= */
+.landing-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 20px;
+  background: linear-gradient(180deg, #faf8ff 0%, #f4eeff 50%, #ede6fd 100%);
+}
+
+.landing-card {
+  background: radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #faf8ff 60%, #f4edff 100%);
+  border-radius: 36px;
+  box-shadow: 0 24px 70px rgba(91, 59, 184, 0.08), 0 4px 18px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(235, 230, 252, 0.95);
+  width: 100%;
+  max-width: 980px;
+  padding: 52px 42px 48px;
+  text-align: center;
+  animation: fadeIn 0.35s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-brand-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.landing-brand-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  box-shadow: 0 5px 16px rgba(79, 70, 229, 0.28);
+}
+
+.landing-brand-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: #171435;
+  user-select: none;
+}
+
+.landing-brand-title span {
+  color: #6545e8;
+}
+
+.landing-headline {
+  font-size: 38px;
+  font-weight: 850;
+  color: #151238;
+  letter-spacing: -0.8px;
+  line-height: 1.22;
+  margin: 0 auto 16px;
+  max-width: 780px;
+}
+
+.highlight-pill {
+  background: #ede8fc;
+  color: #151238;
+  padding: 2px 12px;
+  border-radius: 10px;
+  display: inline-block;
+  font-weight: 850;
+  box-shadow: 0 2px 8px rgba(101, 69, 232, 0.06);
+}
+
+.landing-subtitle {
+  font-size: 17px;
+  color: #5d5975;
+  line-height: 1.55;
+  max-width: 650px;
+  margin: 0 auto 36px;
+  font-weight: 500;
+}
+
+.desktop-break {
+  display: block;
+}
+
+/* Feature Showcase Grid: 3 columns (Left Pills, Center Vira, Right Pills) */
+.landing-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 28px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.landing-pills-col {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.landing-pills-col.left {
+  align-items: flex-end;
+}
+
+.landing-pills-col.right {
+  align-items: flex-start;
+}
+
+.hero-feature-pill {
+  background: #ffffff;
+  border-radius: 9999px;
+  padding: 12px 24px 12px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 24px rgba(91, 71, 163, 0.07);
+  border: 1px solid rgba(238, 233, 252, 0.95);
+  transition: all 0.22s ease;
+  user-select: none;
+  min-width: 215px;
+  cursor: default;
+}
+
+.hero-feature-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(91, 71, 163, 0.12);
+  border-color: #dcd3f8;
+}
+
+.pill-icon-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.pill-icon-circle.target-bg {
+  background: #fee2e2;
+}
+
+.pill-icon-circle.chat-bg {
+  background: #f3e8ff;
+}
+
+.pill-icon-circle.sparkle-bg {
+  background: #fef3c7;
+}
+
+.pill-icon-circle.chart-bg {
+  background: #ede9fe;
+}
+
+.pill-text {
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+  color: #171435;
+  line-height: 1.25;
+}
+
+/* Center Avatar + Meet Vira */
+.landing-vira-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landing-avatar-wrapper {
+  width: 175px;
+  height: 175px;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  filter: drop-shadow(0 10px 24px rgba(99, 102, 241, 0.18));
+}
+
+.meet-vira-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 200px;
+  margin-top: 14px;
+  gap: 12px;
+}
+
+.meet-line {
+  flex: 1;
+  height: 1.5px;
+}
+
+.left-line {
+  background: linear-gradient(90deg, transparent, #c7beea);
+}
+
+.right-line {
+  background: linear-gradient(90deg, #c7beea, transparent);
+}
+
+.meet-label {
+  font-size: 20px;
+  font-weight: 800;
+  color: #5534c7;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+/* Auth Error Notice */
+.landing-auth-error {
+  background: #ffeef2;
+  border: 1px solid #ffccd7;
+  color: #cf1746;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  margin: 20px auto 0;
+  max-width: 440px;
+  text-align: left;
+}
+
+/* CTA Container & Button */
+.landing-cta-container {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.landing-primary-cta {
+  background: linear-gradient(90deg, #5c3be8 0%, #3672ef 55%, #2563eb 100%);
+  color: #ffffff;
+  border: 0;
+  border-radius: 16px;
+  padding: 16px 48px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  box-shadow: 0 10px 28px rgba(47, 98, 237, 0.35);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.22s ease;
+  width: 100%;
+  max-width: 440px;
+}
+
+.landing-primary-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(47, 98, 237, 0.45);
+  filter: brightness(1.04);
+}
+
+.landing-primary-cta:active {
+  transform: translateY(0);
+}
+
+/* Dropdown Menu Popover */
+.landing-dropdown-popover {
+  margin-top: 14px;
+  background: #ffffff;
+  border: 1.5px solid #ece4ff;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(78, 61, 125, 0.14);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  animation: fadeIn 0.2s ease-out;
+  width: 100%;
+}
+
+.landing-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #7b7194;
+  border-bottom: 1px solid #f2edf8;
+  margin-bottom: 4px;
+}
+
+.landing-popover-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: #9f96b3;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.landing-popover-close:hover {
+  background: #f4effa;
+  color: #4b3e69;
+}
+
+.landing-opt-item {
+  border: 0;
+  background: transparent;
+  padding: 12px 14px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  width: 100%;
+  color: var(--ink);
+  text-align: left;
+}
+
+.landing-opt-item:hover {
+  background: #f7f3ff;
+  transform: translateX(3px);
+}
+
+.landing-opt-item.guest-opt {
+  background: #fbf9ff;
+  border: 1px dashed #dcd1f8;
+}
+
+.landing-opt-item.guest-opt:hover {
+  background: #f4eeff;
+}
+
+.landing-opt-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #f0ebff;
+  display: grid;
+  place-items: center;
+  font-size: 21px;
+  flex-shrink: 0;
+}
+
+.landing-opt-meta {
+  flex: 1;
+}
+
+.landing-opt-meta strong {
+  display: block;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
+.landing-opt-meta span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.landing-opt-arrow {
+  font-size: 16px;
+  color: #a49bbb;
+  transition: transform 0.18s ease;
+}
+
+.landing-opt-item:hover .landing-opt-arrow {
+  color: #6545e8;
+  transform: translateX(2px);
+}
+
+/* OTP Form Box */
+.landing-otp-modal-box {
+  background: #ffffff;
+  border: 1.5px solid #ece4ff;
+  border-radius: 22px;
+  box-shadow: 0 16px 40px rgba(78, 61, 125, 0.14);
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  text-align: left;
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* Legacy compatibility classes */
 .login-screen {
   min-height: 100vh;
   display: flex;
@@ -956,81 +1352,6 @@ textarea {
   padding: 42px 36px;
   text-align: center;
   animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.login-dropdown-wrapper {
-  position: relative;
-  display: inline-block;
-  width: 100%;
-  margin-top: 20px;
-}
-
-.login-trigger-btn {
-  width: 100%;
-  padding: 15px 24px;
-  font-size: 16px;
-  font-weight: 800;
-  border-radius: 16px;
-  justify-content: space-between;
-}
-
-.login-dropdown-menu {
-  margin-top: 10px;
-  background: white;
-  border: 1.5px solid #ece4ff;
-  border-radius: 18px;
-  box-shadow: 0 16px 36px rgba(78, 61, 125, 0.12);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: left;
-}
-
-.login-dropdown-item {
-  border: 0;
-  background: transparent;
-  padding: 12px 14px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  width: 100%;
-  color: var(--ink);
-}
-
-.login-dropdown-item:hover {
-  background: #f7f3ff;
-  transform: translateX(3px);
-}
-
-.login-dropdown-item strong {
-  display: block;
-  font-size: 14.5px;
-  color: var(--ink);
-}
-
-.login-dropdown-item span {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.login-dropdown-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: #f0ebff;
-  display: grid;
-  place-items: center;
-  font-size: 21px;
-  flex-shrink: 0;
 }
 
 /* =========================================================================
@@ -1426,6 +1747,71 @@ textarea {
   }
   .login-screen {
     padding: 16px 12px;
+  }
+  .landing-screen {
+    padding: 18px 12px;
+  }
+  .landing-card {
+    padding: 34px 18px 30px;
+    border-radius: 26px;
+  }
+  .landing-headline {
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    line-height: 1.25;
+  }
+  .highlight-pill {
+    padding: 2px 8px;
+    border-radius: 8px;
+  }
+  .landing-subtitle {
+    font-size: 14.5px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .desktop-break {
+    display: inline;
+  }
+  .landing-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .landing-vira-center {
+    order: -1;
+    margin-bottom: 6px;
+  }
+  .landing-avatar-wrapper {
+    width: 145px;
+    height: 145px;
+  }
+  .landing-pills-col.left,
+  .landing-pills-col.right {
+    align-items: stretch;
+    width: 100%;
+    gap: 12px;
+  }
+  .hero-feature-pill {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 18px 10px 12px;
+    gap: 12px;
+  }
+  .pill-icon-circle {
+    width: 40px;
+    height: 40px;
+  }
+  .pill-text {
+    font-size: 14px;
+  }
+  .landing-primary-cta {
+    width: 100%;
+    padding: 15px 24px;
+    font-size: 16.5px;
+    margin-top: 24px;
+  }
+  .landing-otp-modal-box {
+    padding: 20px 16px;
+    border-radius: 20px;
   }
   .vira {
     gap: 10px;
