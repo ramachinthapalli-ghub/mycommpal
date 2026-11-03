@@ -2135,12 +2135,51 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                   <p style={{ margin: '0 0 10px', color: '#3a3455', fontSize: '13.5px', lineHeight: 1.5 }}>
                     {assessment.focusExplanation}
                   </p>
-                  {(assessment.highlights?.[0] || assessment.evidenceCoaching?.whatNeedsWork) && (() => {
-                    const h = assessment.highlights?.[0];
-                    const originalQuote = h?.quote || assessment.evidenceCoaching?.whatNeedsWork?.quote || '';
-                    const issueDesc = h?.issue || assessment.evidenceCoaching?.whatNeedsWork?.audienceImpact || '';
-                    const rawSuggestion = h?.suggestion || `Try saying: “${assessment.technique?.steps?.[0] || 'My direct recommendation is...'}”`;
-                    const betterText = rawSuggestion.replace(/^(Say this instead|Try saying):\s*“?/i, '').replace(/”$/, '');
+                  {(assessment.highlights?.length || assessment.evidenceCoaching?.whatNeedsWork) && (() => {
+                    // Always pick the improvement item (never an effective point / strength)
+                    const improvementHighlight =
+                      assessment.highlights?.find(
+                        (item) =>
+                          !item.issue?.toLowerCase().startsWith('effective point') &&
+                          !item.issue?.toLowerCase().startsWith('strong anchor') &&
+                          !item.suggestion?.toLowerCase().includes('keep this')
+                      ) || assessment.highlights?.[0];
+
+                    const originalQuote =
+                      assessment.evidenceCoaching?.whatNeedsWork?.quote ||
+                      improvementHighlight?.quote ||
+                      '';
+
+                    const issueDesc =
+                      assessment.evidenceCoaching?.whatNeedsWork?.audienceImpact ||
+                      improvementHighlight?.issue ||
+                      '';
+
+                    const rawSuggestion =
+                      assessment.evidenceCoaching?.whatNeedsWork?.betterVersion ||
+                      improvementHighlight?.suggestion ||
+                      '';
+
+                    let betterText = rawSuggestion
+                      .replace(/^(Say this instead|Try saying|Lead with this impact):\s*“?/i, '')
+                      .replace(/”$/, '')
+                      .trim();
+
+                    // Guard against any leftover generic strings: pull from technique model script or challenge
+                    if (
+                      !betterText ||
+                      /keep this substance|sharpening structure/i.test(betterText)
+                    ) {
+                      const firstExampleStep = assessment.technique?.example
+                        ?.split('\n')[0]
+                        ?.replace(/^•\s*[^:]+:\s*“?/, '')
+                        ?.replace(/”$/, '')
+                        ?.trim();
+                      betterText =
+                        firstExampleStep ||
+                        assessment.evidenceCoaching?.nextChallenge?.sentenceStarter ||
+                        'My direct recommendation is to prioritize this initiative to protect customer value.';
+                    }
 
                     if (!originalQuote) return null;
 
@@ -2615,34 +2654,93 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                     <div className="accordion-body">
                       {assessment.highlights && assessment.highlights.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                          {assessment.highlights.map((h, idx) => (
-                            <div key={idx} style={{ background: '#fcfaff', border: '1px solid #eeebf8', borderRadius: '14px', padding: '14px 16px' }}>
-                              <div style={{ marginBottom: '8px' }}>
-                                <div className="tiny" style={{ fontWeight: 700, color: '#7a718c', textTransform: 'uppercase', marginBottom: '4px' }}>
-                                  💬 What you said:
+                          {assessment.highlights.map((h, idx) => {
+                            const isStrength =
+                              h.issue?.toLowerCase().startsWith('effective point') ||
+                              h.issue?.toLowerCase().startsWith('strong anchor');
+
+                            // Sanitize suggestion to avoid any generic leftover placeholders
+                            let suggestionText = h.suggestion;
+                            if (
+                              !suggestionText ||
+                              /keep this substance|sharpening structure/i.test(suggestionText)
+                            ) {
+                              suggestionText = isStrength
+                                ? `Lead with this impact: “Our priority is resolving this issue to protect operational stability.”`
+                                : `Say this instead: “${assessment.evidenceCoaching?.whatNeedsWork?.betterVersion || assessment.technique?.example?.split('\n')[0]?.replace(/^•\s*[^:]+:\s*“?/, '').replace(/”$/, '') || 'My direct recommendation is to prioritize this initiative.'}”`;
+                            }
+
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  background: isStrength ? '#f9fefb' : '#fcfaff',
+                                  border: isStrength ? '1px solid #d1fae5' : '1px solid #eeebf8',
+                                  borderRadius: '14px',
+                                  padding: '14px 16px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                  <div
+                                    className="tiny"
+                                    style={{
+                                      fontWeight: 800,
+                                      color: isStrength ? '#059669' : '#7c3aed',
+                                      textTransform: 'uppercase',
+                                    }}
+                                  >
+                                    {isStrength ? '🌟 Strong Moment' : '⚠️ Area for Improvement'}
+                                  </div>
                                 </div>
-                                <div className="quote" style={{ margin: 0, borderLeftColor: '#7153de', background: '#ffffff', fontSize: '13px' }}>
-                                  “{h.quote}”
+                                <div style={{ marginBottom: '8px' }}>
+                                  <div className="tiny" style={{ fontWeight: 700, color: '#7a718c', textTransform: 'uppercase', marginBottom: '4px' }}>
+                                    💬 What you said:
+                                  </div>
+                                  <div
+                                    className="quote"
+                                    style={{
+                                      margin: 0,
+                                      borderLeftColor: isStrength ? '#10b981' : '#7153de',
+                                      background: '#ffffff',
+                                      fontSize: '13px',
+                                    }}
+                                  >
+                                    “{h.quote}”
+                                  </div>
+                                </div>
+                                <div
+                                  style={{
+                                    marginBottom: '8px',
+                                    padding: '8px 12px',
+                                    background: isStrength ? '#ecfdf5' : '#f5f2ff',
+                                    borderRadius: '8px',
+                                  }}
+                                >
+                                  <strong style={{ fontSize: '12px', color: isStrength ? '#065f46' : '#5534c7', display: 'block', marginBottom: '2px' }}>
+                                    👩‍💼 Vira&apos;s observation:
+                                  </strong>
+                                  <p style={{ margin: 0, fontSize: '12.5px', color: '#443c5b' }}>
+                                    {h.issue}
+                                  </p>
+                                </div>
+                                <div
+                                  style={{
+                                    padding: '8px 12px',
+                                    background: '#f0fdf4',
+                                    borderRadius: '8px',
+                                    borderLeft: `3px solid ${isStrength ? '#059669' : '#16a34a'}`,
+                                  }}
+                                >
+                                  <strong style={{ fontSize: '12px', color: '#16654a', display: 'block', marginBottom: '2px' }}>
+                                    {isStrength ? '💡 How to amplify in your opening:' : '💡 Suggested clearer phrasing:'}
+                                  </strong>
+                                  <p style={{ margin: 0, fontSize: '12.5px', color: '#14532d' }}>
+                                    {suggestionText}
+                                  </p>
                                 </div>
                               </div>
-                              <div style={{ marginBottom: '8px', padding: '8px 12px', background: '#f5f2ff', borderRadius: '8px' }}>
-                                <strong style={{ fontSize: '12px', color: '#5534c7', display: 'block', marginBottom: '2px' }}>
-                                  👩‍💼 Vira&apos;s observation:
-                                </strong>
-                                <p style={{ margin: 0, fontSize: '12.5px', color: '#443c5b' }}>
-                                  {h.issue}
-                                </p>
-                              </div>
-                              <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', borderLeft: '3px solid #16a34a' }}>
-                                <strong style={{ fontSize: '12px', color: '#16654a', display: 'block', marginBottom: '2px' }}>
-                                  💡 Suggested phrasing:
-                                </strong>
-                                <p style={{ margin: 0, fontSize: '12.5px', color: '#14532d' }}>
-                                  {h.suggestion}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : assessment.evidenceCoaching ? (
                         <div style={{ background: '#fcfaff', border: '1px solid #eeebf8', borderRadius: '14px', padding: '14px 16px' }}>
@@ -2664,10 +2762,10 @@ ${comparison?.whatImproved || 'Applied calibrated structure technique.'}${feedba
                           </div>
                           <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', borderLeft: '3px solid #16a34a' }}>
                             <strong style={{ fontSize: '12px', color: '#16654a', display: 'block', marginBottom: '2px' }}>
-                              💡 Suggested phrasing:
+                              💡 Suggested clearer phrasing:
                             </strong>
                             <p style={{ margin: 0, fontSize: '12.5px', color: '#14532d' }}>
-                              Say this instead: “{assessment.evidenceCoaching.nextChallenge.sentenceStarter}”
+                              Say this instead: “{assessment.evidenceCoaching.whatNeedsWork.betterVersion || assessment.evidenceCoaching.nextChallenge.sentenceStarter}”
                             </p>
                           </div>
                         </div>

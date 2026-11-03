@@ -163,6 +163,206 @@ export function generateDynamicIllustrativeExample(
   return `• Point: “My recommendation is prioritizing ${topicPhrase}.”\n• Reason: “Customer telemetry confirms this delivers our highest leverage impact this quarter.”\n• Example: “Our recent pilot showed immediate gains in user sentiment.”\n• Point: “Aligning here delivers maximum value while protecting velocity.”`;
 }
 
+/**
+ * Generates a situation-tailored, executive-level clearer version of a sentence
+ * when AI output is missing, generic, or running in fallback mode.
+ */
+export function generateSituationClearerVersion(
+  scenario: string,
+  goal: string,
+  audience: string,
+  originalQuote?: string,
+  focusArea?: string,
+  techniqueName?: string
+): string {
+  const s = (scenario || '').trim();
+  const sLower = s.toLowerCase();
+  const q = (originalQuote || '').trim();
+  const qLower = q.toLowerCase();
+  const g = (goal || '').toLowerCase();
+  const aud = (audience || 'leadership').toLowerCase();
+
+  const extractKeyPhrases = (text: string): string[] => {
+    return text
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(
+        w =>
+          w.length > 3 &&
+          ![
+            'about',
+            'their',
+            'which',
+            'could',
+            'would',
+            'should',
+            'there',
+            'these',
+            'those',
+            'where',
+            'while',
+            'being',
+            'having',
+            'other',
+            'after',
+            'product',
+            'manager',
+          ].includes(w.toLowerCase())
+      );
+  };
+
+  // 1. Employee / Internal Workflow / Internal Defect
+  if (
+    sLower.includes('employee') ||
+    qLower.includes('employee') ||
+    sLower.includes('staff') ||
+    sLower.includes('internal')
+  ) {
+    if (
+      sLower.includes('bug') ||
+      sLower.includes('issue') ||
+      sLower.includes('defect') ||
+      sLower.includes('delay') ||
+      qLower.includes('issue') ||
+      qLower.includes('problem')
+    ) {
+      return 'My recommendation is to resolve this defect before launch, ensuring we protect our employees from workflow disruptions and maintain data accuracy.';
+    }
+    return 'My recommendation is prioritizing this employee workflow improvement to eliminate internal friction and safeguard team productivity.';
+  }
+
+  // 2. Bugs / Defect / Tech Debt / Stability / Downtime / Latency / SLA
+  if (
+    sLower.includes('bug') ||
+    sLower.includes('defect') ||
+    sLower.includes('debt') ||
+    sLower.includes('sla') ||
+    sLower.includes('stability') ||
+    sLower.includes('outage') ||
+    sLower.includes('crash') ||
+    sLower.includes('latency')
+  ) {
+    if (sLower.includes('checkout') || qLower.includes('checkout')) {
+      return 'My direct recommendation is to allocate sprint resources to fix checkout stability, directly protecting conversion and quarterly ARR.';
+    }
+    if (
+      sLower.includes('delay') ||
+      sLower.includes('postpone') ||
+      sLower.includes('push back') ||
+      qLower.includes('delay')
+    ) {
+      return 'My recommendation is to adjust our release by two weeks to resolve core stability defects, preventing customer trust erosion and SLA penalties.';
+    }
+    return 'My recommendation is allocating dedicated engineering capacity to eliminate this critical technical defect before expanding feature scope.';
+  }
+
+  // 3. Prioritization: Onboarding vs Reporting / Feature Trade-offs
+  if (
+    (sLower.includes('onboarding') && sLower.includes('reporting')) ||
+    (qLower.includes('onboarding') && qLower.includes('reporting'))
+  ) {
+    return 'My direct recommendation is prioritizing the onboarding overhaul over reporting this quarter to drive first-week user activation by 15%.';
+  }
+
+  // 4. Onboarding / Activation / Signup / Funnel / Drop-off
+  if (
+    sLower.includes('onboarding') ||
+    sLower.includes('activation') ||
+    sLower.includes('drop-off') ||
+    sLower.includes('funnel') ||
+    sLower.includes('conversion')
+  ) {
+    return 'My recommendation is focusing our sprint on resolving the activation bottleneck, which telemetry shows unlocks a 3x higher downstream retention rate.';
+  }
+
+  // 5. Enterprise / Sales / Client Churn / Custom Feature
+  if (
+    sLower.includes('churn') ||
+    sLower.includes('enterprise') ||
+    sLower.includes('custom') ||
+    sLower.includes('client')
+  ) {
+    return 'Our recommendation is offering our standard roadmap integration rather than a custom fork, protecting product scalability while addressing the client’s core workflow needs.';
+  }
+
+  // 6. Pricing / Monetization / Tiers / Billing
+  if (
+    sLower.includes('price') ||
+    sLower.includes('pricing') ||
+    sLower.includes('monetiz') ||
+    sLower.includes('tier') ||
+    sLower.includes('billing')
+  ) {
+    return 'My recommendation is transitioning to usage-based pricing, removing adoption friction for smaller teams while expanding revenue as usage scales.';
+  }
+
+  // 7. Storytelling / Misconception / Turning Point / Failure
+  if (
+    g.includes('story') ||
+    sLower.includes('journey') ||
+    sLower.includes('misconception') ||
+    sLower.includes('turning-point') ||
+    sLower.includes('philosophy')
+  ) {
+    return 'Early in my career I believed PM was about having all the answers; shipping an unused feature taught me that great PM leadership begins with understanding the user’s real friction.';
+  }
+
+  // 8. Presentations / Pitch / Opening
+  if (
+    g.includes('present') ||
+    sLower.includes('presentation') ||
+    sLower.includes('pitch') ||
+    sLower.includes('60 seconds')
+  ) {
+    const keyWords = extractKeyPhrases(s);
+    const topic = keyWords.slice(0, 3).join(' ') || 'our strategic product initiative';
+    return `The purpose of today’s review is aligning on ${topic}, so engineering can immediately unblock the next milestone.`;
+  }
+
+  // 9. Articulation / Leadership / Stakeholder (Dynamic Situation Topic Extraction)
+  const keyWords = extractKeyPhrases(s);
+  const topic = keyWords.slice(0, 3).join(' ') || 'our core roadmap priorities';
+
+  if (aud.includes('exec') || aud.includes('leadership') || aud.includes('vp')) {
+    return `My direct recommendation on ${topic} is to prioritize user stability first, protecting our core business metrics while communicating the trade-off transparently.`;
+  }
+
+  if (aud.includes('engineer') || aud.includes('tech')) {
+    return `Our priority on ${topic} is resolving the underlying architectural constraint first so we can sustainably accelerate subsequent feature velocity.`;
+  }
+
+  return `My direct recommendation is to prioritize ${topic} to deliver immediate customer value while managing resource constraints effectively.`;
+}
+
+/**
+ * Generates an executive-ready reinforcement phrasing for a user's strength,
+ * completely avoiding generic placeholders like "Keep this substance".
+ */
+export function generateSituationStrengthReinforcement(
+  scenario: string,
+  audience: string,
+  strengthQuote: string,
+  strengthImpact: string
+): string {
+  const cleanQ = (strengthQuote || '').replace(/^["'“]|["'”]$/g, '').trim();
+  const sLower = (scenario || '').toLowerCase();
+  const qLower = cleanQ.toLowerCase();
+
+  if (qLower.includes('employee') || sLower.includes('employee')) {
+    return 'Lead with this impact: “Resolving this issue now protects our employees from workflow disruptions and maintains data integrity.”';
+  }
+  if (qLower.includes('customer') || qLower.includes('user') || sLower.includes('customer')) {
+    return 'Lead with this impact: “Protecting customer trust and operational stability is our top priority for this milestone.”';
+  }
+  if (qLower.includes('data') || qLower.includes('metric') || qLower.includes('telemetry')) {
+    return 'Lead with this data: “Telemetry clearly confirms this impact, which makes our decision and resource allocation unambiguous.”';
+  }
+  if (cleanQ.length > 10 && cleanQ.length < 80) {
+    return `Amplify this in your opening: “Because ${cleanQ.charAt(0).toLowerCase() + cleanQ.slice(1)}, our clear recommendation is taking immediate action.”`;
+  }
+  return 'Lead with your strongest point in sentence one to immediately anchor stakeholder alignment.';
+}
+
 // =========================================================================
 // SYSTEM PROMPTS & INSTRUCTIONS FOR VIRA
 // =========================================================================
@@ -228,7 +428,10 @@ COACHING RULES:
    - Do not penalize accents, colloquialisms, or non-native grammar if the communication meaning remains clear.
 5. TRADE-OFF DETECTION:
    - Explicitly recognize trade-offs! For example: if clarity improved but storytelling declined because personal narrative was stripped out, declare that trade-off clearly.
-6. STRUCTURED OUTPUT:
+6. CONCRETE SITUATION-TAILORED REWRITES (CRITICAL):
+   - Every "better_version" in "improvement_areas" MUST be a direct, fully spoken, executive-ready rewrite of the quoted sentence tailored specifically to the exact scenario and subject matter (e.g. "We recommend postponing the employee portal release by 3 days to fix the QA defect and protect payroll accuracy.").
+   - NEVER return generic advice, meta-commentary, or placeholders like "Keep this substance", "Be clearer", or "State your recommendation".
+7. STRUCTURED OUTPUT:
    - Always respond in valid, well-formed JSON conforming strictly to the requested schema.`;
 
 // =========================================================================
@@ -373,6 +576,7 @@ EVALUATION INSTRUCTIONS:
 5. EVIDENCE-BASED COACHING:
    - Identify the single lowest scoring dimension as focus skill.
    - Extract VERBATIM quotes from the user transcript for strengths and improvement areas.
+   - For improvement_areas, "better_version" MUST be a direct, situation-tailored rewritten sentence that replaces the user's quote with an executive-ready statement specifically mentioning the scenario topic, decision, and impact. NEVER use generic placeholders like "Keep this substance" or "Be clearer".
    - Recommend ONE communication framework suited to ${goal} and the user's specific gap (e.g. DETI Framework if decision trade-offs or evidence are missing, DRE Framework if evidence is missing, Trade-off Balancing if opportunity costs are omitted, PREP, 3Ps, DRT, or Hook-Journey-Reflection).
    - Write an illustrative example UNDER 45 WORDS tailored to the user's EXACT topic.
    - Write a next challenge exercise with a specific opening sentence starter.
@@ -441,7 +645,7 @@ Return a JSON object conforming strictly to this structure:
     {
       "quote": "verbatim quote <=25 words from transcript",
       "audience_impact": "Explain simply what to change without jargon",
-      "better_version": "A complete, natural rewrite of the quoted sentence showing exactly what to say instead",
+      "better_version": "A complete, situation-specific rewritten sentence tailored to the user's exact scenario and topic (e.g. 'We recommend delaying the employee portal release by 3 days to fix the QA defect and protect payroll accuracy.'). Never return generic advice, meta-commentary, or placeholders like 'Keep this substance'.",
       "missing_elements": ["element 1"]
     }
   ],
@@ -513,11 +717,26 @@ Return a JSON object conforming strictly to this structure:
       missing_elements: scenarioAnalysis.keyQuestions,
     };
 
-    // Construct highlights with concrete better version rewrite
-    const suggestedRewrite = primaryImprovement.better_version
-      ? `Try saying: “${primaryImprovement.better_version}”`
-      : `Try saying: “${parsed.next_exercise?.sentence_starter || 'My direct recommendation is to prioritize...'}”`;
+    // Construct highlights with concrete, situation-tailored better version rewrite
+    let finalBetterVersion = (primaryImprovement.better_version || '').trim();
+    if (
+      !finalBetterVersion ||
+      finalBetterVersion.length < 15 ||
+      /keep this substance|sharpening structure|be more direct|my recommendation is\.\.\./i.test(finalBetterVersion)
+    ) {
+      finalBetterVersion = generateSituationClearerVersion(
+        scenario,
+        goal,
+        audience,
+        primaryImprovement.quote,
+        focusArea,
+        parsed.coaching_technique
+      );
+    }
 
+    const suggestedRewrite = `Try saying: “${finalBetterVersion}”`;
+
+    // CRITICAL: Primary improvement MUST be at index 0 of highlights so Screen 02 and deep dive focus on the core improvement!
     const highlights: Highlight[] = [
       {
         quote: primaryImprovement.quote,
@@ -527,10 +746,17 @@ Return a JSON object conforming strictly to this structure:
     ];
 
     if (primaryStrength.quote && primaryStrength.quote !== primaryImprovement.quote) {
-      highlights.unshift({
+      const strengthSuggestedPhrasing = generateSituationStrengthReinforcement(
+        scenario,
+        audience,
+        primaryStrength.quote,
+        primaryStrength.impact
+      );
+      // PUSH (never unshift) to keep the primary improvement at index 0
+      highlights.push({
         quote: primaryStrength.quote,
         issue: `Effective point: ${primaryStrength.impact}`,
-        suggestion: 'Keep this substance while sharpening structure.',
+        suggestion: strengthSuggestedPhrasing,
       });
     }
 
@@ -647,6 +873,7 @@ Return a JSON object conforming strictly to this structure:
         quote: primaryImprovement.quote,
         audienceImpact: primaryImprovement.audience_impact,
         missingElements: primaryImprovement.missing_elements,
+        betterVersion: finalBetterVersion,
       },
       primaryImprovementArea: parsed.focus_explanation || `${focusArea.toUpperCase()} & Scenario Fulfillment`,
       technique,
@@ -1808,6 +2035,15 @@ export function fallbackAssess(req: MentorAssessRequest): MentorAssessResponse {
     sentenceStarter = 'My direct recommendation is to prioritize...';
   }
 
+  const situationClearer = generateSituationClearerVersion(
+    scenario,
+    goal,
+    audience,
+    needsWorkQuote,
+    focus,
+    technique.name
+  );
+
   const highlights: Highlight[] = [
     {
       quote: needsWorkQuote,
@@ -1817,15 +2053,21 @@ export function fallbackAssess(req: MentorAssessRequest): MentorAssessResponse {
           : focus === 'clarity'
           ? 'Your central decision was mixed into background details instead of being stated directly upfront.'
           : 'Detailed backstory took up valuable time before reaching the core message.',
-      suggestion: `Try saying: “${sentenceStarter}”`,
+      suggestion: `Try saying: “${situationClearer}”`,
     },
   ];
 
   if (workedQuote && workedQuote !== needsWorkQuote) {
-    highlights.unshift({
+    const strengthPhrasing = generateSituationStrengthReinforcement(
+      scenario,
+      audience,
+      workedQuote,
+      workSummary
+    );
+    highlights.push({
       quote: workedQuote,
       issue: `Strong anchor: ${workSummary}. This creates immediate engagement for ${audience}.`,
-      suggestion: `Keep this authentic anchor while moving immediately into your supporting points.`,
+      suggestion: strengthPhrasing,
     });
   }
 
@@ -1852,6 +2094,7 @@ export function fallbackAssess(req: MentorAssessRequest): MentorAssessResponse {
       quote: needsWorkQuote,
       audienceImpact,
       missingElements: requiredElementsChecked.filter(r => !r.addressed).map(r => r.element),
+      betterVersion: situationClearer,
     },
     primaryImprovementArea: `${focus.toUpperCase()} & Scenario Fulfillment`,
     technique,

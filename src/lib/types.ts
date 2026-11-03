@@ -101,6 +101,7 @@ export interface EvidenceCoaching {
     quote: string;
     audienceImpact: string;
     missingElements?: string[];
+    betterVersion?: string;
   };
   primaryImprovementArea: string;
   technique: Technique;
